@@ -39,12 +39,28 @@ export default function Register() {
     setErrors({});
 
     try {
-      const response = await authService.register(formData);
+      // 🔹 Construire les données à envoyer SANS les champs vides
+      const dataToSend = {
+        nom: formData.nom,
+        prenom: formData.prenom,
+        email: formData.email,
+        mot_de_passe: formData.mot_de_passe,
+        role: formData.role,
+        date_naissance: formData.date_naissance,
+      };
+
+      // 🔹 Ajouter seulement le champ nécessaire selon le rôle
+      if (formData.role === 'enseignant') {
+        dataToSend.specialite = formData.specialite;
+      } else if (formData.role === 'etudiant') {
+        dataToSend.filiere = formData.filiere;
+      }
+
+      console.log('📤 Données envoyées:', dataToSend); // Pour débugger
+
+      const response = await authService.register(dataToSend);
       
       if (response.data.success) {
-        // Sauvegarder le token
-        saveAuth(response.data.access_token, response.data.utilisateur);
-        
         setMessage({ type: 'success', text: 'Inscription réussie ! Redirection...' });
         
         // Redirection vers login après 2 secondes
@@ -53,7 +69,8 @@ export default function Register() {
         }, 2000);
       }
     } catch (error) {
-      console.error('Erreur inscription:', error);
+      console.error('❌ Erreur inscription:', error);
+      console.log('📋 Détails erreur:', error.response?.data);
       
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);

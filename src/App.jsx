@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { isAuthenticated } from './utils/auth';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import DashboardEtudiant from './pages/etudiant/DashboardEtudiant';
+import DashboardEnseignant from './pages/enseignant/DashboardEnseignant';
 
 function App() {
   return (
@@ -16,10 +18,13 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         
-        {/* Dashboards (à créer dans les prochaines étapes) */}
+        {/* Dashboards */}
         <Route path="/admin/dashboard" element={<div className="p-8 text-center">Dashboard Admin (À venir)</div>} />
-        <Route path="/enseignant/dashboard" element={<div className="p-8 text-center">Dashboard Enseignant (À venir)</div>} />
-        <Route path="/etudiant/dashboard" element={<div className="p-8 text-center">Dashboard Étudiant (À venir)</div>} />
+        <Route path="/enseignant/dashboard" element={<DashboardEnseignant />} />
+        <Route path="/etudiant/dashboard" element={<DashboardEtudiant />} />
+        
+        {/* Route dashboard générique */}
+        <Route path="/dashboard" element={<Navigate to="/etudiant/dashboard" />} />
       </Routes>
     </BrowserRouter>
   );

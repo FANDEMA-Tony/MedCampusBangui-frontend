@@ -7,6 +7,7 @@ import Input from '../../components/common/Input';
 
 export default function Login() {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     email: '',
     mot_de_passe: '',
@@ -17,10 +18,11 @@ export default function Login() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
     // Effacer l'erreur du champ modifié
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
 
@@ -32,46 +34,74 @@ export default function Login() {
 
     try {
       const response = await authService.login(formData);
-      
-      if (response.data.success) {
-        // Sauvegarder le token
-        saveAuth(response.data.access_token, response.data.utilisateur || {});
-        
+
+      if (response.data.success || response.data.access_token) {
+        const token = response.data.access_token;
+
         setMessage({ type: 'success', text: 'Connexion réussie !' });
-        
+
+        // Sauvegarder le token d'abord
+        localStorage.setItem('token', token);
+
         // Récupérer les infos utilisateur
-        const userResponse = await authService.getMe();
-        const user = userResponse.data.data;
-        
-        // Mettre à jour les infos utilisateur
-        localStorage.setItem('user', JSON.stringify(user));
-        
-        // Redirection selon le rôle
-        setTimeout(() => {
-          switch (user.role) {
-            case 'admin':
-              navigate('/admin/dashboard');
-              break;
-            case 'enseignant':
-              navigate('/enseignant/dashboard');
-              break;
-            case 'etudiant':
-              navigate('/etudiant/dashboard');
-              break;
-            default:
-              navigate('/');
+        try {
+          const userResponse = await authService.getMe();
+          console.log('User response:', userResponse); // Pour débugger
+
+          // Plusieurs formats possibles selon l'API
+          const user =
+            userResponse.data?.data ||
+            userResponse.data?.utilisateur ||
+            userResponse.data;
+
+          console.log('User:', user); // Pour débugger
+
+          // Sauvegarder les infos utilisateur
+          localStorage.setItem('user', JSON.stringify(user));
+
+          // Vérifier que le user existe et a un rôle
+          if (user && user.role) {
+            // Redirection selon le rôle
+            setTimeout(() => {
+              switch (user.role) {
+                case 'admin':
+                  window.location.href = '/admin/dashboard';
+                  break;
+                case 'enseignant':
+                  window.location.href = '/enseignant/dashboard';
+                  break;
+                case 'etudiant':
+                  window.location.href = '/etudiant/dashboard';
+                  break;
+                default:
+                  window.location.href = '/';
+              }
+            }, 500);
+          } else {
+            // Si pas de rôle détecté, redirection par défaut
+            console.warn('Pas de rôle détecté, redirection vers dashboard étudiant');
+            setTimeout(() => {
+              window.location.href = '/etudiant/dashboard';
+            }, 500);
           }
-        }, 1000);
+        } catch (userError) {
+          console.error('Erreur récupération user:', userError);
+
+          // Si on ne peut pas récupérer les infos, redirection générique
+          setTimeout(() => {
+            window.location.href = '/etudiant/dashboard';
+          }, 500);
+        }
       }
     } catch (error) {
       console.error('Erreur login:', error);
-      
+
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
       } else {
-        setMessage({ 
-          type: 'error', 
-          text: error.response?.data?.message || 'Email ou mot de passe incorrect' 
+        setMessage({
+          type: 'error',
+          text: error.response?.data?.message || 'Email ou mot de passe incorrect',
         });
       }
     } finally {
@@ -93,11 +123,13 @@ export default function Login() {
 
         {/* Messages */}
         {message.text && (
-          <div className={`mb-6 p-4 rounded-lg ${
-            message.type === 'success' 
-              ? 'bg-green-100 border-l-4 border-green-500 text-green-700' 
-              : 'bg-red-100 border-l-4 border-red-500 text-red-700'
-          }`}>
+          <div
+            className={`mb-6 p-4 rounded-lg ${
+              message.type === 'success'
+                ? 'bg-green-100 border-l-4 border-green-500 text-green-700'
+                : 'bg-red-100 border-l-4 border-red-500 text-red-700'
+            }`}
+          >
             {message.text}
           </div>
         )}
@@ -140,7 +172,10 @@ export default function Login() {
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             Pas encore de compte ?{' '}
-            <a href="/register" className="text-blue-600 hover:text-blue-700 font-semibold">
+            <a
+              href="/register"
+              className="text-blue-600 hover:text-blue-700 font-semibold"
+            >
               S'inscrire
             </a>
           </p>

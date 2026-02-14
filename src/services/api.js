@@ -122,4 +122,24 @@ export const messageService = {
   delete: (id) => api.delete(`/messages/${id}`),
 };
 
+// Helper pour récupérer l'ID enseignant de l'utilisateur connecté
+export const getEnseignantId = async () => {
+  try {
+    const userResponse = await api.get('/me');
+    const user = userResponse.data.data;
+    
+    if (user.role === 'enseignant') {
+      // Récupérer l'enseignant lié
+      const enseignantsResponse = await api.get('/enseignants');
+      const enseignants = enseignantsResponse.data.data.data || [];
+      const monEnseignant = enseignants.find(e => e.email === user.email);
+      return monEnseignant?.id_enseignant;
+    }
+    return null;
+  } catch (error) {
+    console.error('Erreur récupération ID enseignant:', error);
+    return null;
+  }
+};
+
 export default api;
