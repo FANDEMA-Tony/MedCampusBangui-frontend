@@ -26,10 +26,10 @@ export default function DashboardEtudiant() {
       
       // Récupérer les notes de l'étudiant
       // Note: On récupère l'ID étudiant depuis l'utilisateur connecté
-      const notesResponse = await noteService.getAll();
+      const notesResponse = await noteService.getMesNotes(); // ✅ BON APPEL
       
       if (notesResponse.data.success) {
-        const mesNotes = notesResponse.data.data.data || [];
+        const mesNotes = notesResponse.data.data || [];
         setNotes(mesNotes);
         
         // Calculer les statistiques
@@ -49,6 +49,7 @@ export default function DashboardEtudiant() {
       }
     } catch (error) {
       console.error('Erreur:', error);
+      console.error('Détails:', error.response?.data); // ✅ LOG L'ERREUR EXACTE
     } finally {
       setLoading(false);
     }
@@ -148,7 +149,7 @@ export default function DashboardEtudiant() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(note.date_evaluation || note.created_at).toLocaleDateString('fr-FR')}
+                        {new Date(note.date_attribution || note.created_at).toLocaleDateString('fr-FR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {parseFloat(note.valeur) >= 10 ? (

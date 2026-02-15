@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-
 // Configuration de base de l'API
 const API_URL = 'http://127.0.0.1:8000/api';
 
@@ -51,6 +50,7 @@ export const authService = {
 // Services étudiants
 export const etudiantService = {
   getAll: () => api.get('/etudiants'),
+  getMesEtudiants: () => api.get('/mes-etudiants'),
   getOne: (id) => api.get(`/etudiants/${id}`),
   create: (data) => api.post('/etudiants', data),
   update: (id, data) => api.put(`/etudiants/${id}`, data),
@@ -71,6 +71,7 @@ export const enseignantService = {
 // Services cours
 export const coursService = {
   getAll: () => api.get('/cours'),
+  getMesCours: () => api.get('/mes-cours'), // 🔹 AJOUTÉ
   getOne: (id) => api.get(`/cours/${id}`),
   create: (data) => api.post('/cours', data),
   update: (id, data) => api.put(`/cours/${id}`, data),
@@ -80,7 +81,22 @@ export const coursService = {
 
 // Services notes
 export const noteService = {
-  getAll: () => api.get('/notes'),
+  getAll: () => api.get('/notes'), // Admin/Enseignant uniquement
+  
+  getMesNotes: () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    if (user?.role === 'etudiant') {
+      return api.get('/mes-notes-etudiant'); // ✅ Endpoint étudiant
+    }
+    
+    if (user?.role === 'enseignant') {
+      return api.get('/mes-notes'); // ✅ Endpoint enseignant (existe déjà)
+    }
+    
+    return api.get('/notes'); // Admin par défaut
+  },
+  
   getOne: (id) => api.get(`/notes/${id}`),
   create: (data) => api.post('/notes', data),
   update: (id, data) => api.put(`/notes/${id}`, data),
@@ -120,26 +136,6 @@ export const messageService = {
   getOne: (id) => api.get(`/messages/${id}`),
   send: (data) => api.post('/messages', data),
   delete: (id) => api.delete(`/messages/${id}`),
-};
-
-// Helper pour récupérer l'ID enseignant de l'utilisateur connecté
-export const getEnseignantId = async () => {
-  try {
-    const userResponse = await api.get('/me');
-    const user = userResponse.data.data;
-    
-    if (user.role === 'enseignant') {
-      // Récupérer l'enseignant lié
-      const enseignantsResponse = await api.get('/enseignants');
-      const enseignants = enseignantsResponse.data.data.data || [];
-      const monEnseignant = enseignants.find(e => e.email === user.email);
-      return monEnseignant?.id_enseignant;
-    }
-    return null;
-  } catch (error) {
-    console.error('Erreur récupération ID enseignant:', error);
-    return null;
-  }
 };
 
 export default api;

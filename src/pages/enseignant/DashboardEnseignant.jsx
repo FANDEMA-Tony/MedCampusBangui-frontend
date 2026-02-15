@@ -11,9 +11,17 @@ import Select from '../../components/common/Select';
 
 export default function DashboardEnseignant() {
   const user = getUser();
+
+  // 🔹 Loading principal (dashboard)
   const [loading, setLoading] = useState(true);
+
+  // 🔹 Loading spécifique ajout note (séparé = pro)
+  const [loadingNote, setLoadingNote] = useState(false);
+
   const [cours, setCours] = useState([]);
   const [etudiants, setEtudiants] = useState([]);
+  const [notes, setNotes] = useState([]);
+
   const [stats, setStats] = useState({
     totalCours: 0,
     totalNotes: 0,
@@ -23,12 +31,14 @@ export default function DashboardEnseignant() {
 
   // Modal ajout note
   const [showModalNote, setShowModalNote] = useState(false);
+
   const [formNote, setFormNote] = useState({
     id_etudiant: '',
     id_cours: '',
     valeur: '',
     date_evaluation: new Date().toISOString().split('T')[0],
   });
+
   const [errorsNote, setErrorsNote] = useState({});
   const [messageNote, setMessageNote] = useState({ type: '', text: '' });
 
@@ -39,26 +49,71 @@ export default function DashboardEnseignant() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
-      // Récupérer les cours
-      const coursResponse = await coursService.getAll();
-      if (coursResponse.data.success) {
-        const mesCours = coursResponse.data.data.data || [];
-        setCours(mesCours);
+
+      // 🔹 Récupérer les cours de l'enseignant connecté
+      const coursResponse = await coursService.getAll('/mes-cours');
+      const mesCours = coursResponse.data.data || [];
+      setCours(mesCours);
+
+      // 🔹 Récupérer les étudiants
+      try {
+        const etudiantsResponse = await etudiantService.getMesEtudiants();
+        setEtudiants(etudiantsResponse.data.data || []);
+      } catch (err) {
+        console.log('Erreur récupération étudiants:', err);
+        setEtudiants([]);
+      }
+
+      // 🔹 Récupération des notes (pour vraies stats) - 🆕 LOGS AMÉLIORÉS
+      try {
+        const notesResponse = await noteService.getMesNotes();
+        console.log('📊 Réponse notes COMPLÈTE:', JSON.stringify(notesResponse.data, null, 2)); // 🆕 DEBUG AMÉLIORÉ
         
-        // 🔹 Essayer de récupérer les étudiants (seulement si admin)
-        try {
-          const etudiantsResponse = await etudiantService.getAll();
-          if (etudiantsResponse.data.success) {
-            setEtudiants(etudiantsResponse.data.data.data || []);
+        let toutesLesNotes = [];
+        
+        // 🔹 Gérer différents formats possibles de l'API
+        if (notesResponse.data.success) {
+          // 🆕 Essayer plusieurs chemins
+          if (notesResponse.data.data?.data) {
+            toutesLesNotes = notesResponse.data.data.data;
+            console.log('✅ Format: data.data.data'); // 🆕
+          } else if (Array.isArray(notesResponse.data.data)) {
+            toutesLesNotes = notesResponse.data.data;
+            console.log('✅ Format: data.data (array)'); // 🆕
+          } else if (notesResponse.data.data && typeof notesResponse.data.data === 'object') {
+            // 🆕 Peut-être que c'est un objet avec les notes dedans
+            const keys = Object.keys(notesResponse.data.data);
+            console.log('📋 Clés disponibles:', keys); // 🆕
+            toutesLesNotes = [];
           }
-        } catch (err) {
-          // Si 403 Forbidden, on continue sans les étudiants
-          console.log('ℹ️ Liste étudiants non accessible (réservée aux admins)');
-          setEtudiants([]); // Vide pour éviter les erreurs
         }
         
-        // Calculer les statistiques
+        console.log('✅ Notes récupérées:', toutesLesNotes.length); // 🆕
+        console.log('📝 Contenu notes:', toutesLesNotes); // 🆕
+        setNotes(toutesLesNotes);
+
+        // Calculer la somme des notes
+        const somme = toutesLesNotes.reduce(
+          (acc, note) => acc + parseFloat(note.valeur || 0),
+          0
+        );
+
+        // Calculer la moyenne générale
+        const moyenne =
+          toutesLesNotes.length > 0
+            ? (somme / toutesLesNotes.length).toFixed(2)
+            : 0;
+
+        // Mettre à jour les statistiques
+        setStats({
+          totalCours: mesCours.length,
+          totalNotes: toutesLesNotes.length,
+          moyenneGenerale: moyenne,
+          coursActifs: mesCours.length,
+        });
+      } catch (err) {
+        console.error('❌ Erreur récupération notes:', err);
+        // Si erreur, mettre les stats par défaut
         setStats({
           totalCours: mesCours.length,
           totalNotes: 0,
@@ -75,54 +130,83 @@ export default function DashboardEnseignant() {
 
   const handleChangeNote = (e) => {
     const { name, value } = e.target;
-    setFormNote(prev => ({ ...prev, [name]: value }));
+    setFormNote((prev) => ({ ...prev, [name]: value }));
+
+    // Effacer l'erreur du champ modifié
     if (errorsNote[name]) {
-      setErrorsNote(prev => ({ ...prev, [name]: '' }));
+      setErrorsNote((prev) => ({ ...prev, [name]: '' }));
     }
   };
 
   const handleSubmitNote = async (e) => {
     e.preventDefault();
+
+    // 🔥 Protection anti double clic (pro)
+    if (loadingNote) return;
+
     setMessageNote({ type: '', text: '' });
     setErrorsNote({});
 
     try {
+      setLoadingNote(true);
+
       const response = await noteService.create(formNote);
-      
+
       if (response.data.success) {
-        setMessageNote({ type: 'success', text: 'Note ajoutée avec succès !' });
-        
-        // Réinitialiser le formulaire
+        // Afficher le message de succès
+        setMessageNote({
+          type: 'success',
+          text: 'Note ajoutée avec succès !',
+        });
+
+        // Attendre 1.5s puis fermer le modal
         setTimeout(() => {
+          // Réinitialiser le formulaire
           setFormNote({
             id_etudiant: '',
             id_cours: '',
             valeur: '',
             date_evaluation: new Date().toISOString().split('T')[0],
           });
+
+          // Fermer le modal
           setShowModalNote(false);
+          
+          // Effacer le message
           setMessageNote({ type: '', text: '' });
+          
+          // Réactiver le bouton
+          setLoadingNote(false);
+
+          // Recharger les données
+          fetchData();
         }, 1500);
       }
     } catch (error) {
       console.error('Erreur ajout note:', error);
       
+      // Gérer les erreurs de validation
       if (error.response?.data?.errors) {
         setErrorsNote(error.response.data.errors);
       } else {
-        setMessageNote({ 
-          type: 'error', 
-          text: error.response?.data?.message || 'Erreur lors de l\'ajout de la note' 
+        setMessageNote({
+          type: 'error',
+          text:
+            error.response?.data?.message ||
+            "Erreur lors de l'ajout de la note",
         });
       }
+
+      setLoadingNote(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-100">
       <Navbar />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
         {/* En-tête */}
         <div className="mb-8 flex justify-between items-center">
           <div>
@@ -133,6 +217,7 @@ export default function DashboardEnseignant() {
               Bienvenue {user?.prenom} ! Gérez vos cours et vos étudiants.
             </p>
           </div>
+
           <Button
             variant="primary"
             onClick={() => setShowModalNote(true)}
@@ -216,7 +301,7 @@ export default function DashboardEnseignant() {
       {/* Modal ajout note */}
       <Modal
         isOpen={showModalNote}
-        onClose={() => setShowModalNote(false)}
+        onClose={() => !loadingNote && setShowModalNote(false)}
         title="Ajouter une note"
       >
         {messageNote.text && (
@@ -230,12 +315,16 @@ export default function DashboardEnseignant() {
         )}
 
         <form onSubmit={handleSubmitNote}>
+
           <Select
             label="Cours"
             name="id_cours"
             value={formNote.id_cours}
             onChange={handleChangeNote}
-            options={cours.map(c => ({ value: c.id_cours, label: `${c.code} - ${c.titre}` }))}
+            options={cours.map(c => ({
+              value: c.id_cours,
+              label: `${c.code} - ${c.titre}`
+            }))}
             error={errorsNote.id_cours?.[0]}
             required
           />
@@ -245,9 +334,9 @@ export default function DashboardEnseignant() {
             name="id_etudiant"
             value={formNote.id_etudiant}
             onChange={handleChangeNote}
-            options={etudiants.map(e => ({ 
-              value: e.id_etudiant, 
-              label: `${e.prenom} ${e.nom} (${e.matricule})` 
+            options={etudiants.map(e => ({
+              value: e.id_etudiant,
+              label: `${e.prenom} ${e.nom} (${e.matricule})`
             }))}
             error={errorsNote.id_etudiant?.[0]}
             required
@@ -282,14 +371,17 @@ export default function DashboardEnseignant() {
               type="submit"
               variant="primary"
               className="flex-1"
+              disabled={loadingNote}
             >
-              Ajouter la note
+              {loadingNote ? 'Envoi en cours...' : 'Ajouter la note'}
             </Button>
+
             <Button
               type="button"
               variant="secondary"
               onClick={() => setShowModalNote(false)}
               className="flex-1"
+              disabled={loadingNote}
             >
               Annuler
             </Button>
