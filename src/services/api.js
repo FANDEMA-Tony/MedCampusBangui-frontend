@@ -30,7 +30,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expiré ou invalide
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
@@ -39,7 +38,7 @@ api.interceptors.response.use(
   }
 );
 
-// Services d'authentification
+// ✅ AUTHENTIFICATION
 export const authService = {
   register: (data) => api.post('/register', data),
   login: (data) => api.post('/login', data),
@@ -47,7 +46,7 @@ export const authService = {
   getMe: () => api.get('/me'),
 };
 
-// Services étudiants
+// ✅ ÉTUDIANTS
 export const etudiantService = {
   getAll: () => api.get('/etudiants'),
   getMesEtudiants: () => api.get('/mes-etudiants'),
@@ -58,7 +57,7 @@ export const etudiantService = {
   getNotes: (id) => api.get(`/etudiants/${id}/notes`),
 };
 
-// Services enseignants
+// ✅ ENSEIGNANTS
 export const enseignantService = {
   getAll: () => api.get('/enseignants'),
   getOne: (id) => api.get(`/enseignants/${id}`),
@@ -68,10 +67,10 @@ export const enseignantService = {
   getCours: (id) => api.get(`/enseignants/${id}/cours`),
 };
 
-// Services cours
+// ✅ COURS
 export const coursService = {
   getAll: () => api.get('/cours'),
-  getMesCours: () => api.get('/mes-cours'), // 🔹 AJOUTÉ
+  getMesCours: () => api.get('/mes-cours'),
   getOne: (id) => api.get(`/cours/${id}`),
   create: (data) => api.post('/cours', data),
   update: (id, data) => api.put(`/cours/${id}`, data),
@@ -79,22 +78,22 @@ export const coursService = {
   getNotes: (id) => api.get(`/cours/${id}/notes`),
 };
 
-// Services notes
+// ✅ NOTES
 export const noteService = {
-  getAll: () => api.get('/notes'), // Admin/Enseignant uniquement
+  getAll: () => api.get('/notes'),
   
   getMesNotes: () => {
     const user = JSON.parse(localStorage.getItem('user'));
     
     if (user?.role === 'etudiant') {
-      return api.get('/mes-notes-etudiant'); // ✅ Endpoint étudiant
+      return api.get('/mes-notes-etudiant');
     }
     
     if (user?.role === 'enseignant') {
-      return api.get('/mes-notes'); // ✅ Endpoint enseignant (existe déjà)
+      return api.get('/mes-notes');
     }
     
-    return api.get('/notes'); // Admin par défaut
+    return api.get('/notes');
   },
   
   getOne: (id) => api.get(`/notes/${id}`),
@@ -103,7 +102,30 @@ export const noteService = {
   delete: (id) => api.delete(`/notes/${id}`),
 };
 
-// Services ressources
+// ✅ MESSAGERIE
+export const messageService = {
+  // Messages privés
+  getBoiteReception: () => api.get('/messages/boite-reception'),
+  getBoiteEnvoi: () => api.get('/messages/boite-envoi'),
+  getConversation: (userId) => api.get(`/messages/conversation/${userId}`),
+  getNonLus: () => api.get('/messages/non-lus'),
+  
+  // Annonces
+  getAnnonces: () => api.get('/messages/annonces'),
+  
+  // Forum
+  getForum: (page = 1) => api.get('/messages/forum', { params: { page } }),
+  
+  // CRUD
+  getOne: (id) => api.get(`/messages/${id}`),
+  send: (data) => api.post('/messages', data),
+  delete: (id) => api.delete(`/messages/${id}`),
+  
+  // Épingler
+  toggleEpingle: (id) => api.post(`/messages/${id}/toggle-epingle`),
+};
+
+// ✅ RESSOURCES MÉDICALES (UNE SEULE FOIS)
 export const ressourceService = {
   getAll: (params) => api.get('/ressources', { params }),
   getOne: (id) => api.get(`/ressources/${id}`),
@@ -117,7 +139,7 @@ export const ressourceService = {
   }),
 };
 
-// Services données sanitaires
+// ✅ DONNÉES SANITAIRES
 export const donneeSanitaireService = {
   getAll: (params) => api.get('/donnees-sanitaires', { params }),
   getOne: (id) => api.get(`/donnees-sanitaires/${id}`),
@@ -125,17 +147,6 @@ export const donneeSanitaireService = {
   update: (id, data) => api.put(`/donnees-sanitaires/${id}`, data),
   delete: (id) => api.delete(`/donnees-sanitaires/${id}`),
   getStatistiques: () => api.get('/donnees-sanitaires/statistiques'),
-};
-
-// Services messages
-export const messageService = {
-  getBoiteReception: () => api.get('/messages/boite-reception'),
-  getBoiteEnvoi: () => api.get('/messages/boite-envoi'),
-  getConversation: (userId) => api.get(`/messages/conversation/${userId}`),
-  getNonLus: () => api.get('/messages/non-lus'),
-  getOne: (id) => api.get(`/messages/${id}`),
-  send: (data) => api.post('/messages', data),
-  delete: (id) => api.delete(`/messages/${id}`),
 };
 
 export default api;
