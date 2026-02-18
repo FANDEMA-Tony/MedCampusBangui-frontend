@@ -27,6 +27,8 @@ export default function Messagerie() {
   const [showConversationModal, setShowConversationModal] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
 
+  
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -124,6 +126,15 @@ export default function Messagerie() {
       console.error('Erreur épinglage:', err);
       alert('Erreur lors de l\'épinglage');
     }
+  };
+
+  const handleReplyToForum = (message) => {
+    setComposeType('forum');
+    setShowComposeModal(true);
+    
+    // ✅ Pré-remplir le sujet avec "Re: ..."
+    // Tu peux passer ces infos via un state si besoin
+    console.log('Répondre à:', message.sujet);
   };
 
   return (
@@ -286,6 +297,8 @@ export default function Messagerie() {
                         key={message.id_message}
                         message={message}
                         currentUser={currentUser}
+                        onDelete={fetchData} 
+                        onReply={handleReplyToForum}
                       />
                     ))}
                   </div>

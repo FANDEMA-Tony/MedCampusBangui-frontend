@@ -1,4 +1,32 @@
+import { useState, useEffect } from 'react';
+import { messageService } from '../../services/api';
+
 export default function AnnonceCard({ annonce, currentUser, onToggleEpingle }) {
+  const [vues, setVues] = useState(annonce.nombre_vues || 0);
+  const [likes, setLikes] = useState(annonce.nombre_likes || 0);
+  const [viewed, setViewed] = useState(false);
+
+  // ✅ Incrémenter vues au chargement (1 seule fois)
+  useEffect(() => {
+    if (!viewed) {
+      messageService.getOne(annonce.id_message)
+        .then(() => {
+          setVues(prev => prev + 1);
+          setViewed(true);
+        })
+        .catch(err => console.error('Erreur incrémentation vues:', err));
+    }
+  }, []);
+
+  const handleLike = async () => {
+    try {
+      const response = await messageService.like(annonce.id_message);
+      setLikes(response.data.data.nombre_likes);
+    } catch (err) {
+      console.error('Erreur like:', err);
+    }
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('fr-FR', {
@@ -54,7 +82,6 @@ export default function AnnonceCard({ annonce, currentUser, onToggleEpingle }) {
             </div>
           </div>
 
-          {/* Badge visibilité */}
           <span 
             className="px-3 py-1 rounded-full text-xs font-semibold"
             style={{ backgroundColor: '#E6F2FF', color: '#0066CC' }}
@@ -63,7 +90,6 @@ export default function AnnonceCard({ annonce, currentUser, onToggleEpingle }) {
           </span>
         </div>
 
-        {/* Cours (si applicable) */}
         {annonce.cours && (
           <div 
             className="mb-4 p-3 rounded-lg"
@@ -75,7 +101,6 @@ export default function AnnonceCard({ annonce, currentUser, onToggleEpingle }) {
           </div>
         )}
 
-        {/* Contenu */}
         <div className="mb-4">
           <p className="text-gray-700 whitespace-pre-wrap">
             {annonce.contenu}
@@ -85,10 +110,15 @@ export default function AnnonceCard({ annonce, currentUser, onToggleEpingle }) {
         {/* Footer */}
         <div className="flex items-center justify-between pt-4 border-t border-gray-200">
           <div className="flex items-center gap-4 text-sm text-gray-500">
-            <span>👁️ {annonce.nombre_vues || 0} vues</span>
+            <span>👁️ {vues} vues</span>
+            <button 
+              onClick={handleLike}
+              className="flex items-center gap-1 hover:text-green-600 transition-colors"
+            >
+              👍 {likes}
+            </button>
           </div>
 
-          {/* Bouton épingler (Admin uniquement) */}
           {currentUser.role === 'admin' && (
             <button
               onClick={() => onToggleEpingle(annonce.id_message)}

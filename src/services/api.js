@@ -123,6 +123,13 @@ export const messageService = {
   
   // Épingler
   toggleEpingle: (id) => api.post(`/messages/${id}/toggle-epingle`),
+
+  // 🆕 AJOUTÉ
+  like: (id) => api.post(`/messages/${id}/like`),
+
+  // 🆕 RÉPONSES
+  getReponses: (id) => api.get(`/messages/${id}/reponses`),
+  repondre: (id, data) => api.post(`/messages/${id}/repondre`, data),
 };
 
 // ✅ RESSOURCES MÉDICALES (UNE SEULE FOIS)
