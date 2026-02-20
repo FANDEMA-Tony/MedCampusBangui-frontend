@@ -32,6 +32,7 @@ export default function DonneesSanitaires() {
     gravite: '',
     tranche_age: '',
     sexe: '',
+    nom_patient: '', // 🆕 AJOUTÉ
     en_cours: false,
     graves: false,
   });

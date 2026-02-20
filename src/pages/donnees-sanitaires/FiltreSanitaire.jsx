@@ -25,6 +25,7 @@ export default function FiltreSanitaire({ filtres, onChange, total }) {
       gravite: '',
       tranche_age: '',
       sexe: '',
+      nom_patient: '', // 🆕 AJOUTÉ
       en_cours: false,
       graves: false,
     });
@@ -148,8 +149,22 @@ export default function FiltreSanitaire({ filtres, onChange, total }) {
           </select>
         </div>
 
+        {/* 🆕 RECHERCHE PAR NOM */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Recherche par nom (patients identifiés)
+          </label>
+          <input
+            type="text"
+            value={filtres.nom_patient || ''}
+            onChange={(e) => handleChange('nom_patient', e.target.value)}
+            placeholder="Nom ou prénom du patient..."
+            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none"
+          />
+        </div>
+
         {/* Filtres rapides */}
-        <div className="md:col-span-2 flex gap-3">
+        <div className="md:col-span-4 flex gap-3">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"

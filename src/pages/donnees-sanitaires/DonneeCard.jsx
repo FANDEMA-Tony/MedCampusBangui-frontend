@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { donneeSanitaireService } from '../../services/api';
-import EditDonneeModal from './EditDonneeModal'; // 🆕 AJOUTÉ
+import EditDonneeModal from './EditDonneeModal';
 
 const GRAVITE_CONFIG = {
   leger: { icon: '🟢', color: '#00A86B', bg: '#E6F7F0', label: 'Léger' },
@@ -19,11 +19,12 @@ const STATUT_CONFIG = {
 export default function DonneeCard({ donnee, currentUser, onDeleteSuccess, onUpdateSuccess = onDeleteSuccess }) {
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false); // 🆕 AJOUTÉ
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const graviteConfig = GRAVITE_CONFIG[donnee.gravite] || GRAVITE_CONFIG.modere;
   const statutConfig = STATUT_CONFIG[donnee.statut] || STATUT_CONFIG.en_cours;
 
+  // ✅ CORRECTION : user.id au lieu de user.id_utilisateur
   const canEdit = currentUser?.role === 'admin' || donnee.collecte_par === currentUser?.id;
   const canDelete = currentUser?.role === 'admin' || donnee.collecte_par === currentUser?.id;
 
@@ -54,29 +55,56 @@ export default function DonneeCard({ donnee, currentUser, onDeleteSuccess, onUpd
   return (
     <>
       <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden border border-gray-100">
-        {/* Header */}
+        
+        {/* ✅ HEADER AVEC IDENTITÉ */}
         <div
           className="p-4 border-l-4"
           style={{ borderLeftColor: graviteConfig.color }}
         >
           <div className="flex justify-between items-start mb-2">
-            <div>
+            <div className="flex-1">
+              {/* ✅ NOM PATIENT (si non anonyme) */}
+              {!donnee.est_anonyme && (donnee.nom_patient || donnee.prenom_patient) && (
+                <div className="mb-2">
+                  <h2 className="font-bold text-gray-900 text-xl">
+                    👤 {donnee.prenom_patient || ''} {donnee.nom_patient || ''}
+                  </h2>
+                  {donnee.telephone_patient && (
+                    <p className="text-sm text-gray-600">
+                      📞 {donnee.telephone_patient}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ✅ PATHOLOGIE */}
               <h3 className="font-bold text-gray-800 text-lg">
                 {donnee.pathologie}
               </h3>
-              <p className="text-xs text-gray-500">
-                Code: {donnee.code_patient}
-              </p>
+
+              {/* ✅ CODE PATIENT */}
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-xs font-mono px-2 py-1 rounded" style={{ backgroundColor: '#E6F2FF', color: '#0066CC' }}>
+                  🔑 {donnee.code_patient}
+                </p>
+                {donnee.est_anonyme && (
+                  <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600">
+                    🔒 Anonyme
+                  </span>
+                )}
+              </div>
             </div>
+
+            {/* ✅ BADGE GRAVITÉ */}
             <span
-              className="text-xs font-bold px-3 py-1 rounded-full"
+              className="text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap"
               style={{ backgroundColor: graviteConfig.bg, color: graviteConfig.color }}
             >
               {graviteConfig.icon} {graviteConfig.label}
             </span>
           </div>
 
-          {/* Infos rapides */}
+          {/* ✅ INFOS RAPIDES */}
           <div className="flex gap-2 flex-wrap mt-3">
             {donnee.sexe && (
               <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-600">
@@ -93,10 +121,15 @@ export default function DonneeCard({ donnee, currentUser, onDeleteSuccess, onUpd
                 📍 {donnee.commune}
               </span>
             )}
+            {donnee.quartier && (
+              <span className="text-xs px-2 py-1 rounded-full bg-green-50 text-green-600">
+                🏘️ {donnee.quartier}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Contenu */}
+        {/* ✅ CONTENU */}
         <div className="p-4 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Statut</span>
@@ -119,7 +152,7 @@ export default function DonneeCard({ donnee, currentUser, onDeleteSuccess, onUpd
             </div>
           )}
 
-          {/* Bouton Détails */}
+          {/* ✅ BOUTON DÉTAILS */}
           <button
             onClick={() => setExpanded(!expanded)}
             className="w-full mt-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -127,35 +160,100 @@ export default function DonneeCard({ donnee, currentUser, onDeleteSuccess, onUpd
             {expanded ? '🔼 Masquer détails' : '🔽 Voir détails'}
           </button>
 
-          {/* Détails étendus */}
+          {/* ✅ DÉTAILS ÉTENDUS */}
           {expanded && (
-            <div className="mt-3 pt-3 border-t border-gray-100 space-y-2 text-sm">
-              {donnee.symptomes && (
-                <div>
-                  <span className="font-medium text-gray-700">Symptômes:</span>
-                  <p className="text-gray-600 mt-1">{donnee.symptomes}</p>
-                </div>
-              )}
-              {donnee.traitement_prescrit && (
-                <div>
-                  <span className="font-medium text-gray-700">Traitement:</span>
-                  <p className="text-gray-600 mt-1">{donnee.traitement_prescrit}</p>
-                </div>
-              )}
-              {donnee.antecedents_medicaux && donnee.antecedents_details && (
-                <div>
-                  <span className="font-medium text-gray-700">Antécédents:</span>
-                  <p className="text-gray-600 mt-1">{donnee.antecedents_details}</p>
-                </div>
-              )}
-              {donnee.collecteur && (
-                <div className="text-xs text-gray-400 mt-2">
-                  Collecté par: {donnee.collecteur.prenom} {donnee.collecteur.nom}
+            <div className="mt-3 pt-3 border-t border-gray-100 space-y-3 text-sm">
+              
+              {/* Informations personnelles complètes */}
+              {!donnee.est_anonyme && (donnee.nom_patient || donnee.prenom_patient) && (
+                <div className="p-3 rounded-lg" style={{ backgroundColor: '#E6F2FF' }}>
+                  <p className="font-semibold text-gray-800 mb-2">👤 Informations Patient</p>
+                  <div className="space-y-1 text-gray-700">
+                    <p><span className="font-medium">Nom complet:</span> {donnee.prenom_patient || ''} {donnee.nom_patient || ''}</p>
+                    {donnee.telephone_patient && (
+                      <p><span className="font-medium">Téléphone:</span> {donnee.telephone_patient}</p>
+                    )}
+                    {donnee.sexe && (
+                      <p><span className="font-medium">Sexe:</span> {donnee.sexe === 'M' ? 'Masculin' : donnee.sexe === 'F' ? 'Féminin' : 'Autre'}</p>
+                    )}
+                    {donnee.age && (
+                      <p><span className="font-medium">Âge:</span> {donnee.age} ans {donnee.tranche_age && `(${donnee.tranche_age})`}</p>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* 🆕 BOUTONS MODIFIER + SUPPRIMER */}
-              <div className="flex gap-2 mt-3">
+              {/* Localisation */}
+              {(donnee.ville || donnee.commune || donnee.quartier) && (
+                <div>
+                  <span className="font-medium text-gray-700">📍 Localisation:</span>
+                  <p className="text-gray-600 mt-1">
+                    {[donnee.quartier, donnee.commune, donnee.ville].filter(Boolean).join(', ')}
+                  </p>
+                </div>
+              )}
+
+              {/* Symptômes */}
+              {donnee.symptomes && (
+                <div>
+                  <span className="font-medium text-gray-700">🩺 Symptômes:</span>
+                  <p className="text-gray-600 mt-1">{donnee.symptomes}</p>
+                </div>
+              )}
+
+              {/* Traitement */}
+              {donnee.traitement_prescrit && (
+                <div>
+                  <span className="font-medium text-gray-700">💊 Traitement:</span>
+                  <p className="text-gray-600 mt-1">{donnee.traitement_prescrit}</p>
+                </div>
+              )}
+
+              {/* Dates */}
+              {donnee.date_debut_symptomes && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Date début symptômes:</span>
+                  <span className="font-medium text-gray-700">{formatDate(donnee.date_debut_symptomes)}</span>
+                </div>
+              )}
+
+              {/* Antécédents */}
+              {donnee.antecedents_medicaux && donnee.antecedents_details && (
+                <div>
+                  <span className="font-medium text-gray-700">📋 Antécédents:</span>
+                  <p className="text-gray-600 mt-1">{donnee.antecedents_details}</p>
+                </div>
+              )}
+
+              {/* Vaccination */}
+              {donnee.vaccination_a_jour !== null && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Vaccination:</span>
+                  <span className="font-medium" style={{ color: donnee.vaccination_a_jour ? '#00A86B' : '#DC143C' }}>
+                    {donnee.vaccination_a_jour ? '✅ À jour' : '❌ Non à jour'}
+                  </span>
+                </div>
+              )}
+
+              {/* Notes */}
+              {donnee.notes && (
+                <div>
+                  <span className="font-medium text-gray-700">📝 Notes:</span>
+                  <p className="text-gray-600 mt-1">{donnee.notes}</p>
+                </div>
+              )}
+
+              {/* Collecteur */}
+              {donnee.collecteur && (
+                <div className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
+                  Collecté par: {donnee.collecteur.prenom} {donnee.collecteur.nom}
+                  <br />
+                  Le {formatDate(donnee.created_at)}
+                </div>
+              )}
+
+              {/* ✅ BOUTONS MODIFIER + SUPPRIMER */}
+              <div className="flex gap-2 mt-4">
                 {canEdit && (
                   <button
                     onClick={() => setShowEditModal(true)}
@@ -182,14 +280,13 @@ export default function DonneeCard({ donnee, currentUser, onDeleteSuccess, onUpd
         </div>
       </div>
 
-      {/* 🆕 MODAL DE MODIFICATION */}
+      {/* ✅ MODAL DE MODIFICATION */}
       {showEditModal && (
         <EditDonneeModal
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
           donnee={donnee}
           onSuccess={handleEditSuccess}
-          onUpdateSuccess={onDeleteSuccess} // 🆕 AJOUT
         />
       )}
     </>
