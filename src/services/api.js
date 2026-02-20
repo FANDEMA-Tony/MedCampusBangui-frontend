@@ -154,6 +154,8 @@ export const donneeSanitaireService = {
   update: (id, data) => api.put(`/donnees-sanitaires/${id}`, data),
   delete: (id) => api.delete(`/donnees-sanitaires/${id}`),
   getStatistiques: () => api.get('/donnees-sanitaires/statistiques'),
+  // 🆕 RECHERCHE PAR CODE
+  rechercherParCode: (code) => api.get('/donnees-sanitaires/rechercher-code', { params: { code } }),
 };
 
 export default api;

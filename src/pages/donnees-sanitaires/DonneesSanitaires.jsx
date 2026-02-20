@@ -22,6 +22,8 @@ export default function DonneesSanitaires() {
   const [donnees, setDonnees] = useState([]);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchCode, setSearchCode] = useState('');
+  const [searchResult, setSearchResult] = useState(null);
 
   const [filtres, setFiltres] = useState({
     pathologie: '',
@@ -78,6 +80,28 @@ export default function DonneesSanitaires() {
     setCurrentPage(1);
   };
 
+  const handleSearchCode = async () => {
+    if (!searchCode.trim()) return;
+    
+    try {
+      setLoading(true);
+      const response = await donneeSanitaireService.rechercherParCode(searchCode);
+      setSearchResult(response.data.data);
+      setDonnees([response.data.data]); // Afficher uniquement ce résultat
+      setTotal(1);
+    } catch (err) {
+      if (err.response?.status === 404) {
+        alert('❌ Aucun patient trouvé avec ce code');
+      } else {
+        alert('❌ Erreur lors de la recherche');
+      }
+      setDonnees([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
       <Navbar />
@@ -130,6 +154,30 @@ export default function DonneesSanitaires() {
                 </button>
               ))}
             </nav>
+          </div>
+        </div>
+
+        {/* 🆕 RECHERCHE PAR CODE */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={searchCode}
+                onChange={(e) => setSearchCode(e.target.value)}
+                placeholder="🔍 Rechercher un patient par code (Ex: PAT-ABC123)"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none"
+                onKeyPress={(e) => e.key === 'Enter' && handleSearchCode()}
+              />
+            </div>
+            <button
+              onClick={handleSearchCode}
+              disabled={!searchCode.trim()}
+              className="px-6 py-3 rounded-xl text-white font-semibold transition-all"
+              style={{ backgroundColor: searchCode.trim() ? '#0066CC' : '#93c5fd' }}
+            >
+              🔍 Rechercher
+            </button>
           </div>
         </div>
 
