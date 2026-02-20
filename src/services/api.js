@@ -49,6 +49,7 @@ export const authService = {
 // ✅ ÉTUDIANTS
 export const etudiantService = {
   getAll: () => api.get('/etudiants'),
+  getGrouped: () => api.get('/etudiants-grouped'), // 🆕 NOUVELLE MÉTHODE
   getMesEtudiants: () => api.get('/mes-etudiants'),
   getOne: (id) => api.get(`/etudiants/${id}`),
   create: (data) => api.post('/etudiants', data),
@@ -124,15 +125,15 @@ export const messageService = {
   // Épingler
   toggleEpingle: (id) => api.post(`/messages/${id}/toggle-epingle`),
 
-  // 🆕 AJOUTÉ
+  // Likes
   like: (id) => api.post(`/messages/${id}/like`),
 
-  // 🆕 RÉPONSES
+  // Réponses
   getReponses: (id) => api.get(`/messages/${id}/reponses`),
   repondre: (id, data) => api.post(`/messages/${id}/repondre`, data),
 };
 
-// ✅ RESSOURCES MÉDICALES (UNE SEULE FOIS)
+// ✅ RESSOURCES MÉDICALES
 export const ressourceService = {
   getAll: (params) => api.get('/ressources', { params }),
   getOne: (id) => api.get(`/ressources/${id}`),
@@ -142,6 +143,12 @@ export const ressourceService = {
   update: (id, data) => api.put(`/ressources/${id}`, data),
   delete: (id) => api.delete(`/ressources/${id}`),
   download: (id) => api.get(`/ressources/${id}/telecharger`, {
+    responseType: 'blob'
+  }),
+  // 🆕 LIKE
+  like: (id) => api.post(`/ressources/${id}/like`),
+  // 🆕 PRÉVISUALISATION
+  previsualiser: (id) => api.get(`/ressources/${id}/previsualiser`, {
     responseType: 'blob'
   }),
 };
@@ -154,7 +161,6 @@ export const donneeSanitaireService = {
   update: (id, data) => api.put(`/donnees-sanitaires/${id}`, data),
   delete: (id) => api.delete(`/donnees-sanitaires/${id}`),
   getStatistiques: () => api.get('/donnees-sanitaires/statistiques'),
-  // 🆕 RECHERCHE PAR CODE
   rechercherParCode: (code) => api.get('/donnees-sanitaires/rechercher-code', { params: { code } }),
 };
 

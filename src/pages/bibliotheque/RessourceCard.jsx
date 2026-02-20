@@ -78,10 +78,14 @@ export default function RessourceCard({ ressource, currentUser, onClick }) {
 
         {/* Footer stats */}
         <div className="flex items-center justify-between text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
-          <span>👁️ {ressource.nombre_vues || 0}</span>
-          <span>⬇️ {ressource.nombre_telechargements || 0}</span>
-          <span>
-            {ressource.est_public ? '🌍 Public' : '🔒 Privé'}
+          <span title="Vues">👁️ {ressource.nombre_vues || 0}</span>
+          <span title="Téléchargements">⬇️ {ressource.nombre_telechargements || 0}</span>
+          {/* 🆕 LIKES */}
+          <span title="Likes" className="flex items-center gap-1">
+            {ressource.est_like_par_moi ? '❤️' : '🤍'} {ressource.nombre_likes || 0}
+          </span>
+          <span title="Visibilité">
+            {ressource.est_public ? '🌍' : '🔒'}
           </span>
         </div>
 

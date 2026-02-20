@@ -42,6 +42,7 @@ export default function Bibliotheque() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedRessource, setSelectedRessource] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   useEffect(() => {
     fetchRessources();
@@ -76,9 +77,23 @@ export default function Bibliotheque() {
     }
   };
 
-  const handleOpenDetail = (ressource) => {
-    setSelectedRessource(ressource);
-    setShowDetailModal(true);
+  // 🆕 FONCTION POUR OUVRIR LE DÉTAIL (avec appel getOne pour incrémenter les vues)
+  const handleOpenDetail = async (ressource) => {
+    try {
+      setLoadingDetail(true);
+      
+      // ✅ Appeler getOne() pour incrémenter les vues
+      const response = await ressourceService.getOne(ressource.id_ressource);
+      const ressourceComplete = response.data.data;
+      
+      setSelectedRessource(ressourceComplete);
+      setShowDetailModal(true);
+    } catch (err) {
+      console.error('Erreur chargement ressource:', err);
+      alert('Erreur lors du chargement de la ressource');
+    } finally {
+      setLoadingDetail(false);
+    }
   };
 
   const handleUploadSuccess = () => {
@@ -89,6 +104,11 @@ export default function Bibliotheque() {
   const handleDeleteSuccess = () => {
     setShowDetailModal(false);
     fetchRessources();
+  };
+
+  // 🆕 FONCTION POUR RAFRAÎCHIR APRÈS LIKE
+  const handleLikeSuccess = () => {
+    fetchRessources(); // Rafraîchir la liste
   };
 
   const canUpload = currentUser?.role === 'admin' || currentUser?.role === 'enseignant';
@@ -213,6 +233,7 @@ export default function Bibliotheque() {
         )}
       </div>
 
+      {/* MODAL UPLOAD */}
       {showUploadModal && (
         <UploadModal
           isOpen={showUploadModal}
@@ -221,6 +242,7 @@ export default function Bibliotheque() {
         />
       )}
 
+      {/* MODAL DÉTAIL */}
       {showDetailModal && selectedRessource && (
         <RessourceDetailModal
           isOpen={showDetailModal}
@@ -228,7 +250,21 @@ export default function Bibliotheque() {
           ressource={selectedRessource}
           currentUser={currentUser}
           onDeleteSuccess={handleDeleteSuccess}
+          onLikeSuccess={handleLikeSuccess}
         />
+      )}
+
+      {/* LOADING OVERLAY */}
+      {loadingDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <div className="bg-white rounded-2xl p-6 shadow-2xl">
+            <div
+              className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 mx-auto"
+              style={{ borderColor: COLORS.primary }}
+            ></div>
+            <p className="text-gray-600 mt-4">Chargement...</p>
+          </div>
+        </div>
       )}
     </div>
   );

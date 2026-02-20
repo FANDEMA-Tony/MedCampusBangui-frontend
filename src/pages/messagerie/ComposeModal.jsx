@@ -44,7 +44,7 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
       setLoadingUsers(true);
       let allUsers = [];
 
-      // Récupérer enseignants
+      // Récupérer enseignants (TOUJOURS - tous peuvent envoyer aux enseignants)
       try {
         const enseignantsResponse = await enseignantService.getAll();
         const enseignants = enseignantsResponse.data.data?.data || enseignantsResponse.data.data || [];
@@ -66,7 +66,7 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
         console.error('Erreur enseignants:', err);
       }
 
-      // Récupérer étudiants (si admin ou enseignant)
+      // 🆕 RÈGLE : Étudiants visibles UNIQUEMENT si l'utilisateur est Admin ou Enseignant
       if (currentUser.role === 'admin' || currentUser.role === 'enseignant') {
         try {
           const etudiantsResponse = await etudiantService.getAll();
@@ -228,43 +228,57 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
                 <p className="text-sm text-gray-500 mt-2">Chargement...</p>
               </div>
             ) : (
-              <select
-                name="destinataire_id"
-                value={formData.destinataire_id}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
-                onFocus={(e) => e.target.style.borderColor = '#0066CC'}
-                onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
-              >
-                <option value="">-- Sélectionner un destinataire --</option>
-                
-                {utilisateurs.filter(u => u.role === 'Enseignant').length > 0 && (
-                  <optgroup label="👨‍🏫 Enseignants">
-                    {utilisateurs
-                      .filter(u => u.role === 'Enseignant')
-                      .map(user => (
-                        <option key={user.id_utilisateur} value={user.id_utilisateur}>
-                          {user.nom_complet} ({user.email})
-                        </option>
-                      ))
-                    }
-                  </optgroup>
+              <>
+                <select
+                  name="destinataire_id"
+                  value={formData.destinataire_id}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                  style={{ outline: 'none' }}
+                  onFocus={(e) => e.target.style.borderColor = '#0066CC'}
+                  onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                >
+                  <option value="">-- Sélectionner un destinataire --</option>
+                  
+                  {utilisateurs.filter(u => u.role === 'Enseignant').length > 0 && (
+                    <optgroup label="👨‍🏫 Enseignants">
+                      {utilisateurs
+                        .filter(u => u.role === 'Enseignant')
+                        .map(user => (
+                          <option key={user.id_utilisateur} value={user.id_utilisateur}>
+                            {user.nom_complet} ({user.email})
+                          </option>
+                        ))
+                      }
+                    </optgroup>
+                  )}
+                  
+                  {utilisateurs.filter(u => u.role === 'Étudiant').length > 0 && (
+                    <optgroup label="👨‍🎓 Étudiants">
+                      {utilisateurs
+                        .filter(u => u.role === 'Étudiant')
+                        .map(user => (
+                          <option key={user.id_utilisateur} value={user.id_utilisateur}>
+                            {user.nom_complet} ({user.email})
+                          </option>
+                        ))
+                      }
+                    </optgroup>
+                  )}
+                </select>
+
+                {/* 🆕 MESSAGE INFO POUR ÉTUDIANTS */}
+                {currentUser.role === 'etudiant' && (
+                  <div 
+                    className="mt-2 p-3 rounded-lg text-sm"
+                    style={{ backgroundColor: '#E6F2FF', color: '#0066CC' }}
+                  >
+                    ℹ️ <strong>Note :</strong> Vous pouvez envoyer des messages aux enseignants uniquement. 
+                    Pour échanger avec d'autres étudiants, utilisez le <strong>Forum</strong>.
+                  </div>
                 )}
-                
-                {utilisateurs.filter(u => u.role === 'Étudiant').length > 0 && (
-                  <optgroup label="👨‍🎓 Étudiants">
-                    {utilisateurs
-                      .filter(u => u.role === 'Étudiant')
-                      .map(user => (
-                        <option key={user.id_utilisateur} value={user.id_utilisateur}>
-                          {user.nom_complet} ({user.email})
-                        </option>
-                      ))
-                    }
-                  </optgroup>
-                )}
-              </select>
+              </>
             )}
             
             {errors.destinataire_id && (
@@ -288,6 +302,7 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                style={{ outline: 'none' }}
                 onFocus={(e) => e.target.style.borderColor = '#0066CC'}
                 onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
               >
@@ -324,6 +339,7 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
                     onChange={handleChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                    style={{ outline: 'none' }}
                     onFocus={(e) => e.target.style.borderColor = '#0066CC'}
                     onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
                   >
@@ -370,6 +386,7 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
             required
             rows={type === 'forum' ? '8' : '6'}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+            style={{ outline: 'none' }}
             placeholder={
               type === 'prive' ? 'Écrivez votre message...' :
               type === 'annonce' ? 'Rédigez votre annonce...' :

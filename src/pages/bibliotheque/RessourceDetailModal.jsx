@@ -21,15 +21,25 @@ const CATEGORIE_ICONS = {
   'Neurologie': '🧠',
 };
 
-export default function RessourceDetailModal({ isOpen, onClose, ressource, currentUser, onDeleteSuccess }) {
+export default function RessourceDetailModal({ isOpen, onClose, ressource, currentUser, onDeleteSuccess, onLikeSuccess }) {
   const [downloading, setDownloading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [liking, setLiking] = useState(false);
+  const [liked, setLiked] = useState(ressource?.est_like_par_moi || false);
+  const [likesCount, setLikesCount] = useState(ressource?.nombre_likes || 0);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   if (!isOpen || !ressource) return null;
 
   const config = TYPE_CONFIG[ressource.type] || TYPE_CONFIG.autre;
   const categorieIcon = CATEGORIE_ICONS[ressource.categorie] || '📄';
   const canDelete = currentUser?.role === 'admin' || ressource.ajoute_par === currentUser?.id;
+
+  // 🆕 TYPES PRÉVISUALISABLES
+  const canPreview = ['pdf', 'mp4', 'webm', 'ogg', 'jpg', 'jpeg', 'png', 'gif'].includes(
+    ressource.type_fichier?.toLowerCase()
+  );
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
@@ -57,6 +67,9 @@ export default function RessourceDetailModal({ isOpen, onClose, ressource, curre
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+
+      // Rafraîchir pour mettre à jour le compteur
+      if (onLikeSuccess) onLikeSuccess();
     } catch (err) {
       alert('Erreur lors du téléchargement');
     } finally {
@@ -78,142 +91,248 @@ export default function RessourceDetailModal({ isOpen, onClose, ressource, curre
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        
-        {/* Header coloré */}
-        <div
-          className="p-8 rounded-t-2xl flex items-center justify-center relative"
-          style={{ backgroundColor: config.bg }}
-        >
-          <span className="text-6xl">{config.icon}</span>
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
-          >×</button>
-        </div>
+  // 🆕 FONCTION LIKE
+  const handleLike = async () => {
+    try {
+      setLiking(true);
+      const response = await ressourceService.like(ressource.id_ressource);
+      const data = response.data.data;
 
-        {/* Contenu */}
-        <div className="p-6">
-          {/* Titre + Badges */}
-          <div className="mb-4">
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">{ressource.titre}</h2>
-            <div className="flex gap-2 flex-wrap">
-              <span
-                className="text-xs font-bold px-3 py-1 rounded-full"
-                style={{ backgroundColor: config.bg, color: config.color }}
-              >
-                {config.icon} {ressource.type?.toUpperCase()}
-              </span>
-              {ressource.categorie && (
-                <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600">
-                  {categorieIcon} {ressource.categorie}
-                </span>
-              )}
-              {ressource.niveau && (
-                <span className="text-xs px-3 py-1 rounded-full bg-purple-50 text-purple-600">
-                  🎓 {ressource.niveau}
-                </span>
-              )}
-              <span
-                className="text-xs px-3 py-1 rounded-full"
-                style={{
-                  backgroundColor: ressource.est_public ? '#E6F7F0' : '#FFE6EC',
-                  color: ressource.est_public ? '#00A86B' : '#DC143C',
-                }}
-              >
-                {ressource.est_public ? '🌍 Public' : '🔒 Privé'}
-              </span>
-            </div>
+      setLiked(data.liked);
+      setLikesCount(data.nombre_likes);
+
+      // Rafraîchir la liste
+      if (onLikeSuccess) onLikeSuccess();
+    } catch (err) {
+      alert('Erreur lors du like');
+    } finally {
+      setLiking(false);
+    }
+  };
+
+  // 🆕 FONCTION PRÉVISUALISATION
+  const handlePreview = async () => {
+    try {
+      setShowPreview(true);
+      const response = await ressourceService.previsualiser(ressource.id_ressource);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      setPreviewUrl(url);
+    } catch (err) {
+      alert('Erreur lors de la prévisualisation');
+      setShowPreview(false);
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      window.URL.revokeObjectURL(previewUrl);
+    }
+    setShowPreview(false);
+    setPreviewUrl(null);
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          
+          {/* Header coloré */}
+          <div
+            className="p-8 rounded-t-2xl flex items-center justify-center relative"
+            style={{ backgroundColor: config.bg }}
+          >
+            <span className="text-6xl">{config.icon}</span>
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
+            >×</button>
           </div>
 
-          {/* Description */}
-          {ressource.description && (
+          {/* Contenu */}
+          <div className="p-6">
+            {/* Titre + Badges */}
             <div className="mb-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">📝 Description</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                {ressource.description}
-              </p>
-            </div>
-          )}
-
-          {/* Infos */}
-          <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-xl text-sm">
-            {ressource.auteur && (
-              <div>
-                <p className="text-gray-400 text-xs">✍️ Auteur</p>
-                <p className="font-medium text-gray-700">{ressource.auteur}</p>
+              <h2 className="text-2xl font-bold text-gray-800 mb-3">{ressource.titre}</h2>
+              <div className="flex gap-2 flex-wrap">
+                <span
+                  className="text-xs font-bold px-3 py-1 rounded-full"
+                  style={{ backgroundColor: config.bg, color: config.color }}
+                >
+                  {config.icon} {ressource.type?.toUpperCase()}
+                </span>
+                {ressource.categorie && (
+                  <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600">
+                    {categorieIcon} {ressource.categorie}
+                  </span>
+                )}
+                {ressource.niveau && (
+                  <span className="text-xs px-3 py-1 rounded-full bg-purple-50 text-purple-600">
+                    🎓 {ressource.niveau}
+                  </span>
+                )}
+                <span
+                  className="text-xs px-3 py-1 rounded-full"
+                  style={{
+                    backgroundColor: ressource.est_public ? '#E6F7F0' : '#FFE6EC',
+                    color: ressource.est_public ? '#00A86B' : '#DC143C',
+                  }}
+                >
+                  {ressource.est_public ? '🌍 Public' : '🔒 Privé'}
+                </span>
               </div>
-            )}
-            {ressource.utilisateur && (
-              <div>
-                <p className="text-gray-400 text-xs">📤 Ajouté par</p>
-                <p className="font-medium text-gray-700">
-                  {ressource.utilisateur.prenom} {ressource.utilisateur.nom}
+            </div>
+
+            {/* Description */}
+            {ressource.description && (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">📝 Description</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  {ressource.description}
                 </p>
               </div>
             )}
-            <div>
-              <p className="text-gray-400 text-xs">📅 Date</p>
-              <p className="font-medium text-gray-700">{formatDate(ressource.created_at)}</p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs">📊 Taille</p>
-              <p className="font-medium text-gray-700">{formatSize(ressource.taille_fichier)}</p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs">📄 Fichier</p>
-              <p className="font-medium text-gray-700 truncate">{ressource.nom_fichier}</p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs">📎 Extension</p>
-              <p className="font-medium text-gray-700">.{ressource.type_fichier}</p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs">👁️ Vues</p>
-              <p className="font-medium text-gray-700">{ressource.nombre_vues || 0}</p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs">⬇️ Téléchargements</p>
-              <p className="font-medium text-gray-700">{ressource.nombre_telechargements || 0}</p>
-            </div>
-          </div>
 
-          {/* Boutons d'action */}
-          <div className="flex gap-3">
-            {/* Télécharger */}
-            <button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="flex-1 py-3 rounded-xl text-white font-semibold transition-all hover:opacity-90"
-              style={{ backgroundColor: downloading ? '#93c5fd' : '#0066CC' }}
-            >
-              {downloading ? '⏳ Téléchargement...' : '⬇️ Télécharger'}
-            </button>
+            {/* Infos */}
+            <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-xl text-sm">
+              {ressource.auteur && (
+                <div>
+                  <p className="text-gray-400 text-xs">✍️ Auteur</p>
+                  <p className="font-medium text-gray-700">{ressource.auteur}</p>
+                </div>
+              )}
+              {ressource.utilisateur && (
+                <div>
+                  <p className="text-gray-400 text-xs">📤 Ajouté par</p>
+                  <p className="font-medium text-gray-700">
+                    {ressource.utilisateur.prenom} {ressource.utilisateur.nom}
+                  </p>
+                </div>
+              )}
+              <div>
+                <p className="text-gray-400 text-xs">📅 Date</p>
+                <p className="font-medium text-gray-700">{formatDate(ressource.created_at)}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs">📊 Taille</p>
+                <p className="font-medium text-gray-700">{formatSize(ressource.taille_fichier)}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs">📄 Fichier</p>
+                <p className="font-medium text-gray-700 truncate">{ressource.nom_fichier}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs">📎 Extension</p>
+                <p className="font-medium text-gray-700">.{ressource.type_fichier}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs">👁️ Vues</p>
+                <p className="font-medium text-gray-700">{ressource.nombre_vues || 0}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs">⬇️ Téléchargements</p>
+                <p className="font-medium text-gray-700">{ressource.nombre_telechargements || 0}</p>
+              </div>
+            </div>
 
-            {/* Supprimer (si autorisé) */}
-            {canDelete && (
+            {/* Boutons d'action */}
+            <div className="flex gap-3 mb-3">
+              {/* 🆕 PRÉVISUALISER */}
+              {canPreview && (
+                <button
+                  onClick={handlePreview}
+                  className="flex-1 py-3 rounded-xl font-semibold transition-all hover:opacity-90"
+                  style={{ backgroundColor: '#FFF0E6', color: '#FF6B35' }}
+                >
+                  👁️ Prévisualiser
+                </button>
+              )}
+
+              {/* Télécharger */}
               <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-4 py-3 rounded-xl font-semibold transition-all hover:opacity-90"
-                style={{ backgroundColor: '#FFE6EC', color: '#DC143C' }}
+                onClick={handleDownload}
+                disabled={downloading}
+                className="flex-1 py-3 rounded-xl text-white font-semibold transition-all hover:opacity-90"
+                style={{ backgroundColor: downloading ? '#93c5fd' : '#0066CC' }}
               >
-                {deleting ? '⏳' : '🗑️'}
+                {downloading ? '⏳ Téléchargement...' : '⬇️ Télécharger'}
               </button>
-            )}
+
+              {/* 🆕 LIKE */}
+              <button
+                onClick={handleLike}
+                disabled={liking}
+                className="px-4 py-3 rounded-xl font-semibold transition-all hover:opacity-90 flex items-center gap-2"
+                style={{ 
+                  backgroundColor: liked ? '#FFE6EC' : '#F3F4F6', 
+                  color: liked ? '#DC143C' : '#6B7280' 
+                }}
+              >
+                {liked ? '❤️' : '🤍'} {likesCount}
+              </button>
+
+              {/* Supprimer (si autorisé) */}
+              {canDelete && (
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="px-4 py-3 rounded-xl font-semibold transition-all hover:opacity-90"
+                  style={{ backgroundColor: '#FFE6EC', color: '#DC143C' }}
+                >
+                  {deleting ? '⏳' : '🗑️'}
+                </button>
+              )}
+            </div>
 
             {/* Fermer */}
             <button
               onClick={onClose}
-              className="px-6 py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold"
+              className="w-full py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold"
             >
               Fermer
             </button>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* 🆕 MODAL PRÉVISUALISATION */}
+      {showPreview && previewUrl && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.9)' }}>
+          <button
+            onClick={closePreview}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 text-4xl z-10"
+          >×</button>
+
+          <div className="w-full h-full flex items-center justify-center">
+            {/* PDF */}
+            {ressource.type_fichier?.toLowerCase() === 'pdf' && (
+              <iframe
+                src={previewUrl}
+                className="w-full h-full rounded-lg"
+                title="Prévisualisation PDF"
+              />
+            )}
+
+            {/* VIDÉO */}
+            {['mp4', 'webm', 'ogg'].includes(ressource.type_fichier?.toLowerCase()) && (
+              <video
+                src={previewUrl}
+                controls
+                autoPlay
+                className="max-w-full max-h-full rounded-lg"
+              />
+            )}
+
+            {/* IMAGE */}
+            {['jpg', 'jpeg', 'png', 'gif'].includes(ressource.type_fichier?.toLowerCase()) && (
+              <img
+                src={previewUrl}
+                alt={ressource.titre}
+                className="max-w-full max-h-full rounded-lg"
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
