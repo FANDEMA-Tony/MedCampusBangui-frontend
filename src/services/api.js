@@ -61,6 +61,7 @@ export const etudiantService = {
 // ✅ ENSEIGNANTS
 export const enseignantService = {
   getAll: () => api.get('/enseignants'),
+  getGrouped: () => api.get('/enseignants-grouped'), // 🆕 NOUVELLE MÉTHODE
   getOne: (id) => api.get(`/enseignants/${id}`),
   create: (data) => api.post('/enseignants', data),
   update: (id, data) => api.put(`/enseignants/${id}`, data),
@@ -71,6 +72,7 @@ export const enseignantService = {
 // ✅ COURS
 export const coursService = {
   getAll: () => api.get('/cours'),
+  getGrouped: () => api.get('/cours-grouped'), // 🆕 NOUVELLE MÉTHODE
   getMesCours: () => api.get('/mes-cours'),
   getOne: (id) => api.get(`/cours/${id}`),
   create: (data) => api.post('/cours', data),
@@ -82,6 +84,7 @@ export const coursService = {
 // ✅ NOTES
 export const noteService = {
   getAll: () => api.get('/notes'),
+  getGrouped: () => api.get('/notes-grouped'), // 🆕 NOUVELLE MÉTHODE
   
   getMesNotes: () => {
     const user = JSON.parse(localStorage.getItem('user'));
