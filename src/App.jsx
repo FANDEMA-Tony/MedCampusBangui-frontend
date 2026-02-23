@@ -3,11 +3,13 @@ import { isAuthenticated, getUser } from './utils/auth';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import DashboardEtudiant from './pages/etudiant/DashboardEtudiant';
+import CoursDetail from './pages/etudiant/CoursDetail'; // 🆕 IMPORT
 import DashboardEnseignant from './pages/enseignant/DashboardEnseignant';
 import DashboardAdmin from './pages/admin/DashboardAdmin';
 import Messagerie from './pages/messagerie/Messagerie';
 import Bibliotheque from './pages/bibliotheque/Bibliotheque'; // 🆕 AJOUTÉ
 import DonneesSanitaires from './pages/donnees-sanitaires/DonneesSanitaires'; // 🆕 AJOUTÉ
+
 
 function App() {
   return (
@@ -26,6 +28,7 @@ function App() {
         <Route path="/admin/dashboard" element={<DashboardAdmin />} />
         <Route path="/enseignant/dashboard" element={<DashboardEnseignant />} />
         <Route path="/etudiant/dashboard" element={<DashboardEtudiant />} />
+        <Route path="/etudiant/cours/:id" element={<CoursDetail />} /> {/* 🆕 NOUVELLE ROUTE */}
 
         {/* 📧 MESSAGERIE - Accessible à tous les utilisateurs authentifiés */}
         <Route path="/messagerie" element={
@@ -63,7 +66,7 @@ function DashboardRedirect() {
     case 'enseignant':
       return <Navigate to="/enseignant/dashboard" />;
     case 'etudiant':
-      return <Navigate to="/etudiant/dashboard" />;
+      return <Navigate to="/etudiant/dashboard" />;  
     default:
       return <Navigate to="/login" />;
   }
