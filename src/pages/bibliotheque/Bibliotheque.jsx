@@ -77,12 +77,10 @@ export default function Bibliotheque() {
     }
   };
 
-  // 🆕 FONCTION POUR OUVRIR LE DÉTAIL (avec appel getOne pour incrémenter les vues)
   const handleOpenDetail = async (ressource) => {
     try {
       setLoadingDetail(true);
       
-      // ✅ Appeler getOne() pour incrémenter les vues
       const response = await ressourceService.getOne(ressource.id_ressource);
       const ressourceComplete = response.data.data;
       
@@ -106,9 +104,8 @@ export default function Bibliotheque() {
     fetchRessources();
   };
 
-  // 🆕 FONCTION POUR RAFRAÎCHIR APRÈS LIKE
   const handleLikeSuccess = () => {
-    fetchRessources(); // Rafraîchir la liste
+    fetchRessources();
   };
 
   const canUpload = currentUser?.role === 'admin' || currentUser?.role === 'enseignant';
@@ -119,53 +116,81 @@ export default function Bibliotheque() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* EN-TÊTE */}
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold" style={{ color: COLORS.primary }}>
-              📚 Bibliothèque Médicale
-            </h1>
-            <p className="text-gray-600 mt-1">
-              {total} ressource{total > 1 ? 's' : ''} disponible{total > 1 ? 's' : ''}
-            </p>
-          </div>
+        {/* 🎨 EN-TÊTE MODERNE AMÉLIORÉ */}
+        <div className="mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            {/* Titre avec icône gradient */}
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div 
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)'
+                  }}
+                >
+                  <span className="text-3xl">📚</span>
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold" style={{ color: COLORS.primary }}>
+                    Bibliothèque Médicale
+                  </h1>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span 
+                      className="px-3 py-1 rounded-full text-sm font-bold"
+                      style={{ backgroundColor: COLORS.primaryLight, color: COLORS.primary }}
+                    >
+                      {total} ressource{total > 1 ? 's' : ''}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      disponible{total > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          {canUpload && (
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:opacity-90 transition-all"
-              style={{ backgroundColor: COLORS.success }}
-            >
-              📤 Ajouter une ressource
-            </button>
-          )}
+            {/* Bouton ajouter moderne */}
+            {canUpload && (
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold shadow-lg hover:shadow-xl transition-all"
+                style={{ 
+                  background: 'linear-gradient(135deg, #00A86B 0%, #008755 100%)'
+                }}
+              >
+                <span className="text-lg">📤</span>
+                <span>Ajouter une ressource</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* BARRE DE RECHERCHE */}
-        <div className="bg-white rounded-2xl shadow-sm p-4 mb-6">
+        {/* 🎨 BARRE DE RECHERCHE MODERNE */}
+        <div className="bg-white rounded-2xl shadow-lg p-5 mb-6 border-2 border-gray-100">
           <div className="flex gap-4 flex-wrap">
+            {/* Search input amélioré */}
             <div className="flex-1 min-w-64 relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+              <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                <span className="text-xl">🔍</span>
+              </div>
               <input
                 type="text"
-                placeholder="Rechercher une ressource..."
+                placeholder="Rechercher une ressource par titre, auteur, catégorie..."
                 value={recherche}
                 onChange={(e) => setRecherche(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2"
-                style={{ focusRingColor: COLORS.primary }}
-                onFocus={(e) => e.target.style.borderColor = COLORS.primary}
-                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                style={{ backgroundColor: '#F9FAFB' }}
               />
             </div>
 
+            {/* Select type moderne */}
             <select
               value={typeActive}
               onChange={(e) => { setTypeActive(e.target.value); setCurrentPage(1); }}
-              className="px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none"
-              onFocus={(e) => e.target.style.borderColor = COLORS.primary}
-              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+              className="px-5 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm cursor-pointer transition-all"
+              style={{ backgroundColor: '#F9FAFB', minWidth: '180px' }}
             >
-              <option value="">Tous les types</option>
+              <option value="">📋 Tous les types</option>
               <option value="cours">📖 Cours</option>
               <option value="livre">📚 Livres</option>
               <option value="video">🎬 Vidéos</option>
@@ -173,63 +198,123 @@ export default function Bibliotheque() {
               <option value="autre">📁 Autre</option>
             </select>
           </div>
+
+          {/* Texte aide recherche */}
+          {recherche && (
+            <div className="mt-3 text-sm text-gray-500 flex items-center gap-2">
+              <span>🔎</span>
+              <span>Recherche : <strong className="text-gray-700">{recherche}</strong></span>
+              <button
+                onClick={() => setRecherche('')}
+                className="ml-2 text-red-500 hover:text-red-700 font-semibold"
+              >
+                ✕ Effacer
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* FILTRES CATÉGORIES */}
-        <div className="flex gap-2 flex-wrap mb-6">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.value}
-              onClick={() => { setCategorieActive(cat.value); setCurrentPage(1); }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all"
-              style={
-                categorieActive === cat.value
-                  ? { backgroundColor: COLORS.primary, color: 'white' }
-                  : { backgroundColor: 'white', color: '#374151', border: '1px solid #e5e7eb' }
-              }
-            >
-              {cat.icon} {cat.label}
-            </button>
-          ))}
+        {/* 🎨 FILTRES CATÉGORIES MODERNES */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-sm font-bold text-gray-700">Filtrer par catégorie :</span>
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.value}
+                onClick={() => { setCategorieActive(cat.value); setCurrentPage(1); }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm hover:shadow-md"
+                style={
+                  categorieActive === cat.value
+                    ? { 
+                        background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
+                        color: 'white',
+                        transform: 'scale(1.05)'
+                      }
+                    : { 
+                        backgroundColor: 'white', 
+                        color: '#374151', 
+                        border: '2px solid #e5e7eb' 
+                      }
+                }
+              >
+                <span className="text-lg">{cat.icon}</span>
+                <span>{cat.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* GRILLE RESSOURCES */}
+        {/* 🎨 GRILLE RESSOURCES */}
         {loading ? (
-          <div className="text-center py-16">
+          <div className="text-center py-20">
             <div
-              className="inline-block animate-spin rounded-full h-12 w-12 border-b-2"
+              className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 mb-4"
               style={{ borderColor: COLORS.primary }}
             ></div>
-            <p className="text-gray-500 mt-4">Chargement...</p>
+            <p className="text-lg font-semibold text-gray-700">Chargement des ressources...</p>
+            <p className="text-sm text-gray-500 mt-2">Veuillez patienter</p>
           </div>
         ) : ressources.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
-            <p className="text-5xl mb-4">📭</p>
-            <p className="text-xl font-semibold text-gray-700">Aucune ressource trouvée</p>
-            <p className="text-gray-500 mt-2">
-              {recherche ? `Aucun résultat pour "${recherche}"` : 'Soyez le premier à ajouter une ressource !'}
+          <div className="text-center py-20 bg-white rounded-2xl shadow-lg border-2 border-gray-100">
+            <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+              <span className="text-5xl">📭</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-800 mb-2">Aucune ressource trouvée</p>
+            <p className="text-gray-600 mb-6">
+              {recherche 
+                ? `Aucun résultat pour "${recherche}". Essayez avec d'autres mots-clés.` 
+                : 'Soyez le premier à ajouter une ressource !'}
             </p>
             {canUpload && (
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="mt-6 px-6 py-3 rounded-xl text-white font-semibold"
-                style={{ backgroundColor: COLORS.success }}
+                className="px-8 py-3 rounded-xl text-white font-bold shadow-lg hover:shadow-xl transition-all"
+                style={{ 
+                  background: 'linear-gradient(135deg, #00A86B 0%, #008755 100%)'
+                }}
               >
-                📤 Ajouter une ressource
+                <span className="text-lg">📤</span> Ajouter la première ressource
               </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {ressources.map((ressource) => (
-              <RessourceCard
-                key={ressource.id_ressource}
-                ressource={ressource}
-                currentUser={currentUser}
-                onClick={() => handleOpenDetail(ressource)}
-              />
-            ))}
-          </div>
+          <>
+            {/* Compteur résultats */}
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-800">{ressources.length}</span> ressource{ressources.length > 1 ? 's' : ''} affichée{ressources.length > 1 ? 's' : ''}
+                {(categorieActive || typeActive || recherche) && (
+                  <span className="ml-2">
+                    • <button
+                      onClick={() => {
+                        setCategorieActive('');
+                        setTypeActive('');
+                        setRecherche('');
+                        setCurrentPage(1);
+                      }}
+                      className="text-blue-600 hover:text-blue-800 font-semibold underline"
+                    >
+                      Réinitialiser les filtres
+                    </button>
+                  </span>
+                )}
+              </p>
+            </div>
+
+            {/* Grille */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {ressources.map((ressource) => (
+                <RessourceCard
+                  key={ressource.id_ressource}
+                  ressource={ressource}
+                  currentUser={currentUser}
+                  onClick={() => handleOpenDetail(ressource)}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -254,15 +339,19 @@ export default function Bibliotheque() {
         />
       )}
 
-      {/* LOADING OVERLAY */}
+      {/* 🎨 LOADING OVERLAY MODERNE */}
       {loadingDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <div className="bg-white rounded-2xl p-6 shadow-2xl">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" 
+          style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+        >
+          <div className="bg-white rounded-2xl p-8 shadow-2xl border-2 border-gray-100 text-center">
             <div
-              className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 mx-auto"
+              className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 mx-auto mb-4"
               style={{ borderColor: COLORS.primary }}
             ></div>
-            <p className="text-gray-600 mt-4">Chargement...</p>
+            <p className="text-lg font-semibold text-gray-800">Chargement de la ressource...</p>
+            <p className="text-sm text-gray-500 mt-1">Veuillez patienter</p>
           </div>
         </div>
       )}

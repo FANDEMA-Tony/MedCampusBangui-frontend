@@ -170,4 +170,11 @@ export const donneeSanitaireService = {
   rechercherParCode: (code) => api.get('/donnees-sanitaires/rechercher-code', { params: { code } }),
 };
 
+// ✅ ANALYTICS
+export const analyticsService = {
+  getStatsAdmin: () => api.get('/analytics/admin'),
+  getStatsEtudiant: () => api.get('/analytics/etudiant'),
+  getStatsEnseignant: () => api.get('/analytics/enseignant'),
+};
+
 export default api;

@@ -8,6 +8,22 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 
+// 🆕 IMPORTS ANALYTICS
+import { useAnalytics } from '../../hooks/useAnalytics';
+import LineChart from '../../components/charts/LineChart';
+import BarChart from '../../components/charts/BarChart';
+import PieChart from '../../components/charts/PieChart';
+
+// ✅ AJOUT SPRINT 2 — imports export
+import ExportButton, { ExportButtonGroup } from '../../components/export/ExportButton';
+import { generateRapportAdminPDF } from '../../utils/pdfGenerator';
+import {
+  generateListeEtudiantsExcel,
+  generateListeEnseignantsExcel,
+  generateListeCoursExcel,
+  generateRapportNotesExcel,
+} from '../../utils/excelGenerator';
+
 // 🎨 PALETTE COULEURS MÉDICALES
 const MEDICAL_COLORS = {
   primary: '#0066CC',
@@ -66,6 +82,327 @@ const SEMESTRES_CONFIG = {
   'S6': { icon: '📅', color: '#EC4899', bg: '#FDF2F8', label: 'Semestre 6' },
 };
 
+// ✅ NOUVEAU — FILIÈRES ET NIVEAUX disponibles pour le filtre export
+const FILIERES_LIST = [
+  { value: 'Médecine', label: '🩺 Médecine' },
+  { value: 'Pharmacie', label: '💊 Pharmacie' },
+  { value: 'Sciences-Biomédicale', label: '🧬 Sciences-Biomédicale' },
+  { value: 'Chirurgie', label: '🔬 Chirurgie' },
+  { value: 'Pédiatrie', label: '👶 Pédiatrie' },
+  { value: 'Gynécologie', label: '🌸 Gynécologie' },
+];
+
+const NIVEAUX_LIST = [
+  { value: 'L1', label: '📘 L1 - Licence 1' },
+  { value: 'L2', label: '📗 L2 - Licence 2' },
+  { value: 'L3', label: '📙 L3 - Licence 3' },
+  { value: 'M1', label: '📕 M1 - Master 1' },
+  { value: 'M2', label: '📔 M2 - Master 2' },
+  { value: 'Doctorat', label: '🎓 Doctorat' },
+];
+
+// ✅ NOUVEAU — Composant Modal de Filtre Export (réutilisable pour tous les onglets)
+function ExportFilterModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  exportType,       // 'etudiants' | 'cours' | 'notes' | 'pdf'
+  exportFormat,     // 'excel' | 'pdf'
+  availableFilieres = [],
+  isLoading = false,
+}) {
+  const [selectedFiliere, setSelectedFiliere] = useState('');
+  const [selectedNiveau, setSelectedNiveau] = useState('');
+
+  // Reset à chaque ouverture
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedFiliere('');
+      setSelectedNiveau('');
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const formatIcon = exportFormat === 'excel' ? '📊' : '📄';
+  const formatLabel = exportFormat === 'excel' ? 'Excel' : 'PDF';
+  const formatColor = exportFormat === 'excel' ? MEDICAL_COLORS.secondary : MEDICAL_COLORS.accent;
+  const formatBg = exportFormat === 'excel' ? MEDICAL_COLORS.bgGreen : '#FFF0F0';
+
+  const typeLabels = {
+    etudiants: 'Étudiants',
+    cours: 'Cours',
+    notes: 'Notes',
+    pdf: 'Rapport PDF',
+  };
+
+  // Filières réellement présentes dans les données (ou toutes si non précisé)
+  const filieresDisponibles = availableFilieres.length > 0
+    ? FILIERES_LIST.filter(f => availableFilieres.includes(f.value))
+    : FILIERES_LIST;
+
+  const handleConfirm = () => {
+    onConfirm({
+      filiere: selectedFiliere || null,
+      niveau: selectedNiveau || null,
+    });
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '16px',
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        style={{
+          backgroundColor: 'white',
+          borderRadius: '20px',
+          boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+          width: '100%',
+          maxWidth: '480px',
+          overflow: 'hidden',
+        }}
+      >
+        {/* HEADER */}
+        <div
+          style={{
+            background: `linear-gradient(135deg, ${formatColor}, ${formatColor}CC)`,
+            padding: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '48px', height: '48px',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                borderRadius: '12px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '24px',
+              }}
+            >
+              {formatIcon}
+            </div>
+            <div>
+              <h2 style={{ color: 'white', fontWeight: '700', fontSize: '18px', margin: 0 }}>
+                Export {formatLabel}
+              </h2>
+              <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '13px', margin: 0 }}>
+                {typeLabels[exportType]} — Choisissez un tri
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: '32px', height: '32px',
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              border: 'none', borderRadius: '8px',
+              color: 'white', fontSize: '18px',
+              cursor: 'pointer', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* BODY */}
+        <div style={{ padding: '24px' }}>
+
+          {/* INFO BOX */}
+          <div
+            style={{
+              backgroundColor: formatBg,
+              border: `1px solid ${formatColor}33`,
+              borderRadius: '12px',
+              padding: '12px 16px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+            }}
+          >
+            <span style={{ fontSize: '18px', flexShrink: 0 }}>💡</span>
+            <p style={{ fontSize: '13px', color: MEDICAL_COLORS.gray700, margin: 0, lineHeight: '1.5' }}>
+              Laissez les champs vides pour exporter <strong>toutes les données</strong>, 
+              ou sélectionnez une filière et/ou un niveau pour un export ciblé.
+            </p>
+          </div>
+
+          {/* SÉLECTION FILIÈRE */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{
+              display: 'block', fontSize: '14px', fontWeight: '600',
+              color: MEDICAL_COLORS.gray700, marginBottom: '8px',
+            }}>
+              🏫 Filière
+              <span style={{ fontSize: '12px', fontWeight: '400', color: MEDICAL_COLORS.gray600, marginLeft: '6px' }}>
+                (optionnel)
+              </span>
+            </label>
+            <select
+              value={selectedFiliere}
+              onChange={(e) => {
+                setSelectedFiliere(e.target.value);
+                setSelectedNiveau(''); // reset niveau si filière change
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                border: `2px solid ${selectedFiliere ? formatColor : MEDICAL_COLORS.gray300}`,
+                borderRadius: '10px',
+                fontSize: '14px',
+                color: MEDICAL_COLORS.gray800,
+                backgroundColor: 'white',
+                outline: 'none',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s',
+              }}
+            >
+              <option value="">-- Toutes les filières --</option>
+              {filieresDisponibles.map(f => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* SÉLECTION NIVEAU */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{
+              display: 'block', fontSize: '14px', fontWeight: '600',
+              color: MEDICAL_COLORS.gray700, marginBottom: '8px',
+            }}>
+              🎓 Niveau
+              <span style={{ fontSize: '12px', fontWeight: '400', color: MEDICAL_COLORS.gray600, marginLeft: '6px' }}>
+                (optionnel)
+              </span>
+            </label>
+            <select
+              value={selectedNiveau}
+              onChange={(e) => setSelectedNiveau(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                border: `2px solid ${selectedNiveau ? formatColor : MEDICAL_COLORS.gray300}`,
+                borderRadius: '10px',
+                fontSize: '14px',
+                color: MEDICAL_COLORS.gray800,
+                backgroundColor: 'white',
+                outline: 'none',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s',
+              }}
+            >
+              <option value="">-- Tous les niveaux --</option>
+              {NIVEAUX_LIST.map(n => (
+                <option key={n.value} value={n.value}>{n.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* APERÇU DU TRI */}
+          {(selectedFiliere || selectedNiveau) && (
+            <div
+              style={{
+                backgroundColor: MEDICAL_COLORS.bgBlue,
+                border: `1px solid ${MEDICAL_COLORS.primary}33`,
+                borderRadius: '10px',
+                padding: '12px 16px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+              }}
+            >
+              <span style={{ fontSize: '16px' }}>🎯</span>
+              <div>
+                <p style={{ fontSize: '12px', color: MEDICAL_COLORS.gray600, margin: '0 0 2px 0' }}>
+                  Export ciblé :
+                </p>
+                <p style={{ fontSize: '14px', fontWeight: '700', color: MEDICAL_COLORS.primary, margin: 0 }}>
+                  {selectedFiliere || 'Toutes filières'}
+                  {selectedNiveau && ` — ${selectedNiveau}`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* BOUTONS */}
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: '12px',
+                border: `2px solid ${MEDICAL_COLORS.gray300}`,
+                borderRadius: '10px',
+                backgroundColor: 'white',
+                color: MEDICAL_COLORS.gray700,
+                fontWeight: '600',
+                fontSize: '14px',
+                cursor: 'pointer',
+              }}
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={isLoading}
+              style={{
+                flex: 2,
+                padding: '12px',
+                border: 'none',
+                borderRadius: '10px',
+                background: `linear-gradient(135deg, ${formatColor}, ${formatColor}BB)`,
+                color: 'white',
+                fontWeight: '700',
+                fontSize: '14px',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                opacity: isLoading ? 0.7 : 1,
+              }}
+            >
+              {isLoading ? (
+                <>
+                  <span style={{
+                    width: '16px', height: '16px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: 'white',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                    display: 'inline-block',
+                  }} />
+                  Export en cours...
+                </>
+              ) : (
+                <>
+                  {formatIcon} Télécharger {formatLabel}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* CSS animation spinner */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+    </div>
+  );
+}
+
 export default function DashboardAdmin() {
   const user = getUser();
   const [loading, setLoading] = useState(true);
@@ -73,24 +410,23 @@ export default function DashboardAdmin() {
 
   // Données
   const [enseignants, setEnseignants] = useState([]);
-  const [enseignantsGrouped, setEnseignantsGrouped] = useState([]); // 🆕 AJOUTÉ
+  const [enseignantsGrouped, setEnseignantsGrouped] = useState([]);
   const [etudiantsGrouped, setEtudiantsGrouped] = useState([]);
   const [etudiants, setEtudiants] = useState([]);
   const [coursGrouped, setCoursGrouped] = useState([]);
   const [cours, setCours] = useState([]);
   const [notes, setNotes] = useState([]);
-  const [notesGrouped, setNotesGrouped] = useState([]); // 🆕 Notes hiérarchiques
+  const [notesGrouped, setNotesGrouped] = useState([]);
+
+  // 🆕 HOOK ANALYTICS
+  const { data: analyticsData, loading: analyticsLoading } = useAnalytics();
 
   // États accordéons
   const [expandedFilieres, setExpandedFilieres] = useState({});
   const [expandedNiveaux, setExpandedNiveaux] = useState({});
   const [expandedFilieresC, setExpandedFilieresC] = useState({});
   const [expandedNiveauxC, setExpandedNiveauxC] = useState({});
-
-  // 🆕 États accordéons ENSEIGNANTS
   const [expandedSpecialites, setExpandedSpecialites] = useState({});
-
-  // 🆕 États accordéons NOTES
   const [expandedFilieresN, setExpandedFilieresN] = useState({});
   const [expandedNiveauxN, setExpandedNiveauxN] = useState({});
   const [expandedSemestresN, setExpandedSemestresN] = useState({});
@@ -138,13 +474,13 @@ export default function DashboardAdmin() {
   const [errorsCours, setErrorsCours] = useState({});
   const [messageCours, setMessageCours] = useState({ type: '', text: '' });
 
-  // 🆕 GESTION NOTES (AVEC SEMESTRE)
+  // GESTION NOTES
   const [showModalNote, setShowModalNote] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [loadingNote, setLoadingNote] = useState(false);
   const [formNote, setFormNote] = useState({
-    filiere_note: '', // 🆕
-    niveau_note: '',  // 🆕
+    filiere_note: '',
+    niveau_note: '',
     id_etudiant: '',
     id_cours: '',
     valeur: '',
@@ -153,6 +489,14 @@ export default function DashboardAdmin() {
   });
   const [errorsNote, setErrorsNote] = useState({});
   const [messageNote, setMessageNote] = useState({ type: '', text: '' });
+
+  // ✅ NOUVEAU — États pour le modal de filtre export
+  const [exportFilterModal, setExportFilterModal] = useState({
+    isOpen: false,
+    exportType: '',   // 'etudiants' | 'enseignants' | 'cours' | 'notes' | 'pdf'
+    exportFormat: '', // 'excel' | 'pdf'
+    isLoading: false,
+  });
 
   useEffect(() => {
     fetchData();
@@ -167,15 +511,13 @@ export default function DashboardAdmin() {
       let allCours = [];
       let allCoursGrouped = [];
       let allNotes = [];
-      let allNotesGrouped = []; // 🆕
+      let allNotesGrouped = [];
 
       try {
-        // 🆕 Récupérer enseignants groupés
         const enseignantsGroupedResponse = await enseignantService.getGrouped();
         const allEnseignantsGrouped = enseignantsGroupedResponse.data.data || [];
         setEnseignantsGrouped(allEnseignantsGrouped);
 
-        // Liste plate pour stats
         const enseignantsResponse = await enseignantService.getAll();
         allEnseignants = enseignantsResponse.data.data?.data || enseignantsResponse.data.data || [];
         setEnseignants(allEnseignants);
@@ -208,12 +550,10 @@ export default function DashboardAdmin() {
       }
 
       try {
-        // 🆕 Récupérer notes hiérarchiques
         const notesGroupedResponse = await noteService.getGrouped();
         allNotesGrouped = notesGroupedResponse.data.data || [];
         setNotesGrouped(allNotesGrouped);
 
-        // Liste plate pour stats
         const notesResponse = await noteService.getAll();
         allNotes = notesResponse.data.data?.data || notesResponse.data.data || [];
         setNotes(allNotes);
@@ -248,12 +588,10 @@ export default function DashboardAdmin() {
     }
   };
 
-  // 🆕 TOGGLE ACCORDÉONS ENSEIGNANTS
   const toggleSpecialite = (specialite) => {
     setExpandedSpecialites(prev => ({ ...prev, [specialite]: !prev[specialite] }));
   };
 
-  // TOGGLE ACCORDÉONS ÉTUDIANTS
   const toggleFiliere = (filiere) => {
     setExpandedFilieres(prev => ({ ...prev, [filiere]: !prev[filiere] }));
   };
@@ -263,7 +601,6 @@ export default function DashboardAdmin() {
     setExpandedNiveaux(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // TOGGLE ACCORDÉONS COURS
   const toggleFiliereC = (filiere) => {
     setExpandedFilieresC(prev => ({ ...prev, [filiere]: !prev[filiere] }));
   };
@@ -273,7 +610,6 @@ export default function DashboardAdmin() {
     setExpandedNiveauxC(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // 🆕 TOGGLE ACCORDÉONS NOTES
   const toggleFiliereN = (filiere) => {
     setExpandedFilieresN(prev => ({ ...prev, [filiere]: !prev[filiere] }));
   };
@@ -288,7 +624,6 @@ export default function DashboardAdmin() {
     setExpandedSemestresN(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // FILTRER ÉTUDIANTS PAR RECHERCHE
   const filteredGrouped = etudiantsGrouped.map(filiereGroup => ({
     ...filiereGroup,
     niveaux: filiereGroup.niveaux.map(niveauGroup => ({
@@ -305,7 +640,6 @@ export default function DashboardAdmin() {
     })).filter(niveauGroup => niveauGroup.etudiants.length > 0)
   })).filter(filiereGroup => filiereGroup.niveaux.length > 0);
 
-  // FILTRER COURS PAR RECHERCHE
   const filteredCoursGrouped = coursGrouped.map(filiereGroup => ({
     ...filiereGroup,
     niveaux: filiereGroup.niveaux.map(niveauGroup => ({
@@ -544,14 +878,13 @@ export default function DashboardAdmin() {
       setLoadingCours(true);
       let response;
 
-      // 🔥 CORRECTION : Envoyer filiere et niveau
       const dataToSend = {
         code: formCours.code,
         titre: formCours.titre,
         description: formCours.description,
         id_enseignant: formCours.id_enseignant,
-        filiere: formCours.filiere || null,  // 🆕 AJOUTÉ
-        niveau: formCours.niveau || null,    // 🆕 AJOUTÉ
+        filiere: formCours.filiere || null,
+        niveau: formCours.niveau || null,
       };
 
       if (editingCours) {
@@ -612,23 +945,23 @@ export default function DashboardAdmin() {
     if (note) {
       setEditingNote(note);
       setFormNote({
-        filiere_note: note.etudiant?.filiere || '', // 🆕
-        niveau_note: note.etudiant?.niveau || '',   // 🆕
+        filiere_note: note.etudiant?.filiere || '',
+        niveau_note: note.etudiant?.niveau || '',
         id_etudiant: note.id_etudiant,
         id_cours: note.id_cours,
         valeur: note.valeur,
-        semestre: note.semestre || '', // 🆕
+        semestre: note.semestre || '',
         date_evaluation: note.date_evaluation || new Date().toISOString().split('T')[0],
       });
     } else {
       setEditingNote(null);
       setFormNote({
-        filiere_note: '',  // 🆕
-        niveau_note: '',   // 🆕
+        filiere_note: '',
+        niveau_note: '',
         id_etudiant: '',
         id_cours: '',
         valeur: '',
-        semestre: '', // 🆕
+        semestre: '',
         date_evaluation: new Date().toISOString().split('T')[0],
       });
     }
@@ -709,23 +1042,189 @@ export default function DashboardAdmin() {
     }
   };
 
+  // ✅ SPRINT 2 — Handlers export originaux (inchangés)
+  const handleExportRapportPDF = async () => {
+    await generateRapportAdminPDF(stats, etudiants, enseignants, cours, notes);
+  };
+
+  const handleExportEtudiantsExcel = async () => {
+    await generateListeEtudiantsExcel(etudiants);
+  };
+
+  const handleExportEnseignantsExcel = async () => {
+    await generateListeEnseignantsExcel(enseignants);
+  };
+
+  const handleExportCoursExcel = async () => {
+    await generateListeCoursExcel(cours);
+  };
+
+  const handleExportNotesExcel = async () => {
+    await generateRapportNotesExcel(notes, stats);
+  };
+
+  // ✅ NOUVEAU — Ouvrir le modal filtre export
+  const openExportFilter = (exportType, exportFormat) => {
+    setExportFilterModal({ isOpen: true, exportType, exportFormat, isLoading: false });
+  };
+
+  // ✅ NOUVEAU — Fermer le modal filtre export
+  const closeExportFilter = () => {
+    setExportFilterModal(prev => ({ ...prev, isOpen: false, isLoading: false }));
+  };
+
+  // ✅ NOUVEAU — Logique principale : filtrer les données puis exporter
+  const handleExportWithFilter = async ({ filiere, niveau }) => {
+    const { exportType, exportFormat } = exportFilterModal;
+
+    setExportFilterModal(prev => ({ ...prev, isLoading: true }));
+
+    try {
+      // === FILTRAGE DES DONNÉES ===
+      const filterData = (items, filiereKey = 'filiere', niveauKey = 'niveau') => {
+        return items.filter(item => {
+          const matchFiliere = !filiere || item[filiereKey] === filiere;
+          const matchNiveau = !niveau || item[niveauKey] === niveau;
+          return matchFiliere && matchNiveau;
+        });
+      };
+
+      if (exportType === 'etudiants' && exportFormat === 'excel') {
+        const etudiantsFiltres = filterData(etudiants);
+        const notesFiltrees = filterData(
+          notes,
+          'filiere', // les notes ont la filière via etudiant
+          'niveau'
+        ).filter(n => {
+          // filtrage via l'étudiant lié
+          const etu = etudiants.find(e => e.id_etudiant === n.id_etudiant);
+          if (!etu) return false;
+          const matchFiliere = !filiere || etu.filiere === filiere;
+          const matchNiveau = !niveau || etu.niveau === niveau;
+          return matchFiliere && matchNiveau;
+        });
+        await generateListeEtudiantsExcel(etudiantsFiltres, notesFiltrees);
+
+      } else if (exportType === 'enseignants' && exportFormat === 'excel') {
+        // Les enseignants n'ont pas de filière/niveau directs → on exporte tous
+        // mais on peut filtrer les cours qu'ils enseignent dans la filière/niveau
+        await generateListeEnseignantsExcel(enseignants);
+
+      } else if (exportType === 'cours' && exportFormat === 'excel') {
+        const coursFiltres = filterData(cours);
+        await generateListeCoursExcel(coursFiltres);
+
+      } else if (exportType === 'notes' && exportFormat === 'excel') {
+        const notesFiltrees = notes.filter(n => {
+          const etu = etudiants.find(e => e.id_etudiant === n.id_etudiant);
+          if (!etu) return !filiere && !niveau; // garder si pas de filtre
+          const matchFiliere = !filiere || etu.filiere === filiere;
+          const matchNiveau = !niveau || etu.niveau === niveau;
+          return matchFiliere && matchNiveau;
+        });
+
+        // Stats filtrées
+        const statsFiltrees = {
+          ...stats,
+          totalEtudiants: filterData(etudiants).length,
+          totalNotes: notesFiltrees.length,
+          moyenneGenerale: notesFiltrees.length > 0
+            ? (notesFiltrees.reduce((acc, n) => acc + parseFloat(n.valeur || 0), 0) / notesFiltrees.length).toFixed(2)
+            : 0,
+          filiere: filiere || 'Toutes',
+          niveau: niveau || 'Tous',
+        };
+
+        await generateRapportNotesExcel(notesFiltrees, statsFiltrees);
+
+      } else if (exportType === 'pdf' && exportFormat === 'pdf') {
+        const etudiantsFiltres = filterData(etudiants);
+        const enseignantsFiltres = enseignants; // les enseignants n'ont pas filière
+        const coursFiltres = filterData(cours);
+        const notesFiltrees = notes.filter(n => {
+          const etu = etudiants.find(e => e.id_etudiant === n.id_etudiant);
+          if (!etu) return !filiere && !niveau;
+          return (!filiere || etu.filiere === filiere) && (!niveau || etu.niveau === niveau);
+        });
+
+        const statsFiltrees = {
+          ...stats,
+          totalEtudiants: etudiantsFiltres.length,
+          totalCours: coursFiltres.length,
+          totalNotes: notesFiltrees.length,
+          moyenneGenerale: notesFiltrees.length > 0
+            ? (notesFiltrees.reduce((acc, n) => acc + parseFloat(n.valeur || 0), 0) / notesFiltrees.length).toFixed(2)
+            : 0,
+          filiere: filiere || 'Toutes',
+          niveau: niveau || 'Tous',
+        };
+
+        await generateRapportAdminPDF(statsFiltrees, etudiantsFiltres, enseignantsFiltres, coursFiltres, notesFiltrees);
+      }
+
+      closeExportFilter();
+    } catch (err) {
+      console.error('Erreur export filtré:', err);
+      setExportFilterModal(prev => ({ ...prev, isLoading: false }));
+      alert('Erreur lors de l\'export. Veuillez réessayer.');
+    }
+  };
+
+  // ✅ NOUVEAU — Filières disponibles dans les données actuelles
+  const filieresDisponibles = [...new Set(etudiants.map(e => e.filiere).filter(Boolean))];
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: MEDICAL_COLORS.gray50 }}>
       <Navbar />
 
+      {/* ✅ NOUVEAU — Modal filtre export (global, utilisé partout) */}
+      <ExportFilterModal
+        isOpen={exportFilterModal.isOpen}
+        onClose={closeExportFilter}
+        onConfirm={handleExportWithFilter}
+        exportType={exportFilterModal.exportType}
+        exportFormat={exportFilterModal.exportFormat}
+        availableFilieres={filieresDisponibles}
+        isLoading={exportFilterModal.isLoading}
+      />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* EN-TÊTE */}
+        {/* EN-TÊTE — titre/sous-titre 100% inchangés, boutons export mis à jour */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold" style={{ color: MEDICAL_COLORS.gray900 }}>
-            Tableau de bord Administrateur
-          </h1>
-          <p className="mt-2" style={{ color: MEDICAL_COLORS.gray600 }}>
-            Bienvenue {user?.prenom} ! Gérez l'ensemble de la plateforme MedCampus.
-          </p>
+          <div className="flex items-start justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-3xl font-bold" style={{ color: MEDICAL_COLORS.gray900 }}>
+                Tableau de bord Administrateur
+              </h1>
+              <p className="mt-2" style={{ color: MEDICAL_COLORS.gray600 }}>
+                Bienvenue {user?.prenom} ! Gérez l'ensemble de la plateforme MedCampus.
+              </p>
+            </div>
+            {/* ✅ AJOUT — boutons export globaux avec modal filtre */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <ExportButton
+                onClick={() => openExportFilter('pdf', 'pdf')}
+                label="Rapport PDF"
+                icon="📄"
+                variant="pdf"
+                size="md"
+                tooltip="Télécharger le rapport général en PDF (avec filtre filière/niveau)"
+              />
+              <ExportButton
+                onClick={() => openExportFilter('notes', 'excel')}
+                label="Notes Excel"
+                icon="📊"
+                variant="excel"
+                size="md"
+                disabled={notes.length === 0}
+                tooltip="Exporter les notes en Excel (avec filtre filière/niveau)"
+              />
+            </div>
+          </div>
         </div>
 
-        {/* STATISTIQUES */}
+        {/* STATISTIQUES — inchangé */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <StatCard icon="👨‍🏫" title="Enseignants" value={stats.totalEnseignants} color="blue" />
           <StatCard icon="👨‍🎓" title="Étudiants" value={stats.totalEtudiants} color="green" />
@@ -734,7 +1233,7 @@ export default function DashboardAdmin() {
           <StatCard icon="📊" title="Moyenne" value={`${stats.moyenneGenerale}/20`} color="red" />
         </div>
 
-        {/* ONGLETS */}
+        {/* ONGLETS — inchangé */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="border-b" style={{ borderColor: MEDICAL_COLORS.gray200 }}>
             <nav className="flex -mb-px">
@@ -748,8 +1247,7 @@ export default function DashboardAdmin() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-6 text-sm font-medium transition-colors ${activeTab === tab.id ? 'border-b-2' : ''
-                    }`}
+                  className={`py-4 px-6 text-sm font-medium transition-colors ${activeTab === tab.id ? 'border-b-2' : ''}`}
                   style={
                     activeTab === tab.id
                       ? { borderBottomColor: MEDICAL_COLORS.primary, color: MEDICAL_COLORS.primary }
@@ -765,20 +1263,15 @@ export default function DashboardAdmin() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div
-              className="inline-block animate-spin rounded-full h-12 w-12 border-b-2"
-              style={{ borderColor: MEDICAL_COLORS.primary }}
-            ></div>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: MEDICAL_COLORS.primary }}></div>
             <p className="mt-4" style={{ color: MEDICAL_COLORS.gray600 }}>Chargement...</p>
           </div>
         ) : (
           <>
-            {/* VUE D'ENSEMBLE */}
-            {/* 🆕 VUE D'ENSEMBLE PROFESSIONNELLE AMÉLIORÉE */}
+            {/* 🆕 VUE D'ENSEMBLE AVEC GRAPHIQUES ANALYTICS */}
             {activeTab === 'overview' && (
               <div className="space-y-6">
-
-                {/* 🎯 SECTION RAPIDE - ACTIVITÉ RÉCENTE */}
+                {/* 🎯 ACTIVITÉ RÉCENTE (ANCIEN DESIGN GARDÉ) */}
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -802,7 +1295,6 @@ export default function DashboardAdmin() {
                     </div>
                   </div>
 
-                  {/* MINI STATS EN LIGNE */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="bg-white rounded-xl p-4 border hover:shadow-md transition-shadow" style={{ borderColor: MEDICAL_COLORS.gray200 }}>
                       <div className="flex items-center justify-between">
@@ -878,10 +1370,66 @@ export default function DashboardAdmin() {
                   </div>
                 </div>
 
-                {/* 📊 GRILLE PRINCIPALE */}
+                {/* 🆕 GRAPHIQUES ANALYTICS (NOUVEAU - AJOUTÉ) */}
+                {analyticsLoading ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: MEDICAL_COLORS.primary }}></div>
+                    <p className="mt-4" style={{ color: MEDICAL_COLORS.gray600 }}>Chargement des statistiques...</p>
+                  </div>
+                ) : analyticsData ? (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {analyticsData.inscriptions && analyticsData.inscriptions.length > 0 && (
+                        <LineChart
+                          data={analyticsData.inscriptions}
+                          dataKey="total"
+                          xKey="mois"
+                          title="📈 Évolution des Inscriptions (6 derniers mois)"
+                          color={MEDICAL_COLORS.primary}
+                        />
+                      )}
+
+                      {analyticsData.par_filiere && analyticsData.par_filiere.length > 0 && (
+                        <PieChart
+                          data={analyticsData.par_filiere}
+                          dataKey="total"
+                          nameKey="filiere"
+                          title="🍰 Répartition par Filière"
+                          innerRadius={60}
+                        />
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {analyticsData.taux_reussite && analyticsData.taux_reussite.length > 0 && (
+                        <BarChart
+                          data={analyticsData.taux_reussite}
+                          dataKey="taux"
+                          xKey="niveau"
+                          title="📊 Taux de Réussite par Niveau"
+                          color={MEDICAL_COLORS.secondary}
+                          formatter={(value) => `${value}%`}
+                        />
+                      )}
+
+                      {analyticsData.moyennes_cours && analyticsData.moyennes_cours.length > 0 && (
+                        <BarChart
+                          data={analyticsData.moyennes_cours.slice(0, 10)}
+                          dataKey="moyenne"
+                          xKey="code"
+                          title="🏆 Top 10 - Moyennes par Cours"
+                          color={MEDICAL_COLORS.orange}
+                          horizontal={true}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* 📊 GRILLE PRINCIPALE AVEC BARRES DE PROGRESSION (ANCIEN DESIGN GARDÉ) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
 
-                  {/* 👨‍🏫 ENSEIGNANTS - CARD AMÉLIORÉE */}
+                  {/* 👨‍🏫 ENSEIGNANTS */}
                   <div className="bg-white rounded-2xl shadow-lg overflow-hidden border hover:shadow-2xl transition-all duration-300" style={{ borderColor: MEDICAL_COLORS.gray200 }}>
                     <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6">
                       <div className="flex items-center justify-between mb-4">
@@ -900,7 +1448,6 @@ export default function DashboardAdmin() {
                         </div>
                       </div>
 
-                      {/* BARRE DE PROGRESSION */}
                       <div className="w-full bg-white/20 rounded-full h-2 mb-2">
                         <div
                           className="bg-white rounded-full h-2 transition-all duration-500"
@@ -940,7 +1487,7 @@ export default function DashboardAdmin() {
                                 </p>
                               </div>
                               <span className="text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded-full font-medium">
-                                {ens.cours?.length || 0} cours
+                                {ens.cours_count || 0} cours
                               </span>
                             </div>
                           ))}
@@ -958,7 +1505,7 @@ export default function DashboardAdmin() {
                     </div>
                   </div>
 
-                  {/* 👨‍🎓 ÉTUDIANTS - CARD AMÉLIORÉE */}
+                  {/* 👨‍🎓 ÉTUDIANTS */}
                   <div className="bg-white rounded-2xl shadow-lg overflow-hidden border hover:shadow-2xl transition-all duration-300" style={{ borderColor: MEDICAL_COLORS.gray200 }}>
                     <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6">
                       <div className="flex items-center justify-between mb-4">
@@ -977,7 +1524,6 @@ export default function DashboardAdmin() {
                         </div>
                       </div>
 
-                      {/* BARRE DE PROGRESSION */}
                       <div className="w-full bg-white/20 rounded-full h-2 mb-2">
                         <div
                           className="bg-white rounded-full h-2 transition-all duration-500"
@@ -1042,7 +1588,7 @@ export default function DashboardAdmin() {
                     </div>
                   </div>
 
-                  {/* 📚 COURS - CARD AMÉLIORÉE */}
+                  {/* 📚 COURS */}
                   <div className="bg-white rounded-2xl shadow-lg overflow-hidden border hover:shadow-2xl transition-all duration-300" style={{ borderColor: MEDICAL_COLORS.gray200 }}>
                     <div className="bg-gradient-to-r from-purple-500 to-violet-600 p-6">
                       <div className="flex items-center justify-between mb-4">
@@ -1061,7 +1607,6 @@ export default function DashboardAdmin() {
                         </div>
                       </div>
 
-                      {/* BARRE DE PROGRESSION */}
                       <div className="w-full bg-white/20 rounded-full h-2 mb-2">
                         <div
                           className="bg-white rounded-full h-2 transition-all duration-500"
@@ -1123,7 +1668,7 @@ export default function DashboardAdmin() {
                   </div>
                 </div>
 
-                {/* 📊 STATISTIQUES DÉTAILLÉES */}
+                {/* 📊 STATISTIQUES DÉTAILLÉES (ANCIEN DESIGN GARDÉ) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                   {/* PERFORMANCE ACADÉMIQUE */}
@@ -1275,16 +1820,28 @@ export default function DashboardAdmin() {
               </div>
             )}
 
-            {/* ENSEIGNANTS - CODE INCHANGÉ (TON CODE ACTUEL) */}
+            {/* ENSEIGNANTS HIÉRARCHIQUE */}
             {activeTab === 'enseignants' && (
               <div>
-                <div className="mb-6 flex justify-between items-center">
+                {/* ✅ bouton export Excel avec modal filtre */}
+                <div className="mb-6 flex justify-between items-center flex-wrap gap-3">
                   <h2 className="text-2xl font-bold" style={{ color: MEDICAL_COLORS.gray800 }}>
                     Gestion des Enseignants
                   </h2>
-                  <Button variant="primary" onClick={() => handleOpenModalEnseignant()}>
-                    ➕ Ajouter un enseignant
-                  </Button>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <ExportButton
+                      onClick={() => openExportFilter('enseignants', 'excel')}
+                      label="Excel"
+                      icon="📊"
+                      variant="excel"
+                      size="sm"
+                      disabled={enseignants.length === 0}
+                      tooltip="Exporter la liste des enseignants en Excel"
+                    />
+                    <Button variant="primary" onClick={() => handleOpenModalEnseignant()}>
+                      ➕ Ajouter un enseignant
+                    </Button>
+                  </div>
                 </div>
 
                 {enseignantsGrouped.length === 0 ? (
@@ -1296,7 +1853,6 @@ export default function DashboardAdmin() {
                     {enseignantsGrouped.map((specialiteGroup) => {
                       const isExpandedSpecialite = expandedSpecialites[specialiteGroup.specialite];
 
-                      // 🎨 Couleur basée sur la spécialité
                       const specialiteColors = {
                         'Cardiologie': { color: MEDICAL_COLORS.accent, bg: '#FFE6EC' },
                         'Pneumologie': { color: MEDICAL_COLORS.teal, bg: MEDICAL_COLORS.bgTeal },
@@ -1311,7 +1867,6 @@ export default function DashboardAdmin() {
 
                       return (
                         <div key={specialiteGroup.specialite} className="bg-white rounded-xl shadow-sm overflow-hidden">
-                          {/* HEADER SPÉCIALITÉ */}
                           <button
                             onClick={() => toggleSpecialite(specialiteGroup.specialite)}
                             className="w-full px-6 py-4 flex items-center justify-between hover:opacity-90 transition-all"
@@ -1333,7 +1888,6 @@ export default function DashboardAdmin() {
                             </span>
                           </button>
 
-                          {/* CARDS ENSEIGNANTS */}
                           {isExpandedSpecialite && (
                             <div className="p-6">
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1343,7 +1897,6 @@ export default function DashboardAdmin() {
                                     className="group border rounded-xl p-4 hover:shadow-xl transition-all duration-300 cursor-pointer relative overflow-hidden"
                                     style={{ borderColor: MEDICAL_COLORS.gray200 }}
                                   >
-                                    {/* CARD PRINCIPALE */}
                                     <div className="relative z-10">
                                       <div className="flex items-start justify-between mb-3">
                                         <span className="text-4xl">👨‍🏫</span>
@@ -1363,7 +1916,6 @@ export default function DashboardAdmin() {
                                         {ens.specialite || 'Non spécifiée'}
                                       </p>
 
-                                      {/* INFOS VISIBLES */}
                                       <div className="space-y-2 mb-4">
                                         <div className="flex items-center gap-2">
                                           <span className="text-sm">📧</span>
@@ -1379,7 +1931,6 @@ export default function DashboardAdmin() {
                                         </div>
                                       </div>
 
-                                      {/* INFOS HOVER (masquées par défaut) */}
                                       <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 space-y-2 mb-4">
                                         {ens.date_naissance && (
                                           <div className="flex items-center gap-2">
@@ -1397,7 +1948,6 @@ export default function DashboardAdmin() {
                                         </div>
                                       </div>
 
-                                      {/* BOUTONS D'ACTION */}
                                       <div className="flex gap-2">
                                         <button
                                           onClick={() => handleOpenModalEnseignant(ens)}
@@ -1416,7 +1966,6 @@ export default function DashboardAdmin() {
                                       </div>
                                     </div>
 
-                                    {/* EFFET HOVER BACKGROUND */}
                                     <div
                                       className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-300"
                                       style={{ backgroundColor: specialiteConfig.color }}
@@ -1437,13 +1986,25 @@ export default function DashboardAdmin() {
             {/* ÉTUDIANTS HIÉRARCHIQUE */}
             {activeTab === 'etudiants' && (
               <div>
-                <div className="mb-6 flex justify-between items-center">
+                {/* ✅ bouton export Excel avec modal filtre */}
+                <div className="mb-6 flex justify-between items-center flex-wrap gap-3">
                   <h2 className="text-2xl font-bold" style={{ color: MEDICAL_COLORS.gray800 }}>
                     Gestion des Étudiants
                   </h2>
-                  <Button variant="primary" onClick={() => handleOpenModalEtudiant()}>
-                    ➕ Ajouter un étudiant
-                  </Button>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <ExportButton
+                      onClick={() => openExportFilter('etudiants', 'excel')}
+                      label="Excel"
+                      icon="📊"
+                      variant="excel"
+                      size="sm"
+                      disabled={etudiants.length === 0}
+                      tooltip="Exporter la liste des étudiants en Excel (avec filtre filière/niveau)"
+                    />
+                    <Button variant="primary" onClick={() => handleOpenModalEtudiant()}>
+                      ➕ Ajouter un étudiant
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="mb-6">
@@ -1495,9 +2056,41 @@ export default function DashboardAdmin() {
                                 </p>
                               </div>
                             </div>
-                            <span className="text-2xl" style={{ color: filiereConfig.color }}>
-                              {isExpandedFiliere ? '▼' : '▶'}
-                            </span>
+                            {/* ✅ NOUVEAU — bouton export rapide par filière directement dans l'accordéon */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Pré-sélectionne la filière courante
+                                  setExportFilterModal({
+                                    isOpen: true,
+                                    exportType: 'etudiants',
+                                    exportFormat: 'excel',
+                                    isLoading: false,
+                                    defaultFiliere: filiereGroup.filiere,
+                                  });
+                                }}
+                                title={`Exporter ${filiereGroup.filiere} en Excel`}
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  backgroundColor: 'rgba(255,255,255,0.7)',
+                                  color: filiereConfig.color,
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                📊 Export
+                              </button>
+                              <span className="text-2xl" style={{ color: filiereConfig.color }}>
+                                {isExpandedFiliere ? '▼' : '▶'}
+                              </span>
+                            </div>
                           </button>
 
                           {isExpandedFiliere && (
@@ -1524,9 +2117,37 @@ export default function DashboardAdmin() {
                                           </p>
                                         </div>
                                       </div>
-                                      <span className="text-lg" style={{ color: niveauConfig.color }}>
-                                        {isExpandedNiveau ? '▼' : '▶'}
-                                      </span>
+                                      {/* ✅ NOUVEAU — export rapide filière+niveau depuis le niveau */}
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleExportWithFilter({
+                                              filiere: filiereGroup.filiere,
+                                              niveau: niveauGroup.niveau,
+                                            });
+                                          }}
+                                          title={`Exporter ${filiereGroup.filiere} ${niveauGroup.niveau}`}
+                                          style={{
+                                            padding: '3px 8px',
+                                            borderRadius: '6px',
+                                            border: 'none',
+                                            backgroundColor: 'rgba(255,255,255,0.8)',
+                                            color: niveauConfig.color,
+                                            fontSize: '11px',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '3px',
+                                          }}
+                                        >
+                                          📊 {filiereGroup.filiere} {niveauGroup.niveau}
+                                        </button>
+                                        <span className="text-lg" style={{ color: niveauConfig.color }}>
+                                          {isExpandedNiveau ? '▼' : '▶'}
+                                        </span>
+                                      </div>
                                     </button>
 
                                     {isExpandedNiveau && (
@@ -1600,19 +2221,30 @@ export default function DashboardAdmin() {
               </div>
             )}
 
-            {/* 🆕 COURS HIÉRARCHIQUE AVEC CARDS */}
+            {/* COURS HIÉRARCHIQUE AVEC CARDS */}
             {activeTab === 'cours' && (
               <div>
-                <div className="mb-6 flex justify-between items-center">
+                {/* ✅ bouton export Excel avec modal filtre */}
+                <div className="mb-6 flex justify-between items-center flex-wrap gap-3">
                   <h2 className="text-2xl font-bold" style={{ color: MEDICAL_COLORS.gray800 }}>
                     Gestion des Cours
                   </h2>
-                  <Button variant="primary" onClick={() => handleOpenModalCours()}>
-                    ➕ Ajouter un cours
-                  </Button>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <ExportButton
+                      onClick={() => openExportFilter('cours', 'excel')}
+                      label="Excel"
+                      icon="📊"
+                      variant="excel"
+                      size="sm"
+                      disabled={cours.length === 0}
+                      tooltip="Exporter la liste des cours en Excel (avec filtre filière/niveau)"
+                    />
+                    <Button variant="primary" onClick={() => handleOpenModalCours()}>
+                      ➕ Ajouter un cours
+                    </Button>
+                  </div>
                 </div>
 
-                {/* 🔍 BARRE DE RECHERCHE COURS */}
                 <div className="mb-6">
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl">🔍</span>
@@ -1696,7 +2328,6 @@ export default function DashboardAdmin() {
                                       </span>
                                     </button>
 
-                                    {/* 🆕 GRILLE DE CARDS */}
                                     {isExpandedNiveauC && (
                                       <div className="p-4 bg-white">
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1752,7 +2383,6 @@ export default function DashboardAdmin() {
                                                 </button>
                                               </div>
                                             </div>
-
                                           ))}
                                         </div>
                                       </div>
@@ -1770,16 +2400,28 @@ export default function DashboardAdmin() {
               </div>
             )}
 
-            {/* 🆕 NOTES HIÉRARCHIQUES - NOUVEAU CODE */}
+            {/* NOTES HIÉRARCHIQUES */}
             {activeTab === 'notes' && (
               <div>
-                <div className="mb-6 flex justify-between items-center">
+                {/* ✅ bouton export Excel avec modal filtre */}
+                <div className="mb-6 flex justify-between items-center flex-wrap gap-3">
                   <h2 className="text-2xl font-bold" style={{ color: MEDICAL_COLORS.gray800 }}>
                     Gestion des Notes
                   </h2>
-                  <Button variant="primary" onClick={() => handleOpenModalNote()}>
-                    ➕ Ajouter une note
-                  </Button>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <ExportButton
+                      onClick={() => openExportFilter('notes', 'excel')}
+                      label="Excel"
+                      icon="📊"
+                      variant="excel"
+                      size="sm"
+                      disabled={notes.length === 0}
+                      tooltip="Exporter les notes en Excel (avec filtre filière/niveau)"
+                    />
+                    <Button variant="primary" onClick={() => handleOpenModalNote()}>
+                      ➕ Ajouter une note
+                    </Button>
+                  </div>
                 </div>
 
                 {notesGrouped.length === 0 ? (
@@ -1794,7 +2436,6 @@ export default function DashboardAdmin() {
 
                       return (
                         <div key={filiereGroup.filiere} className="bg-white rounded-xl shadow-sm overflow-hidden">
-                          {/* FILIÈRE */}
                           <button
                             onClick={() => toggleFiliereN(filiereGroup.filiere)}
                             className="w-full px-6 py-4 flex items-center justify-between hover:opacity-90 transition-all"
@@ -1816,7 +2457,6 @@ export default function DashboardAdmin() {
                             </span>
                           </button>
 
-                          {/* NIVEAUX */}
                           {isExpandedFiliereN && (
                             <div className="px-6 pb-4 space-y-3">
                               {filiereGroup.niveaux.map((niveauGroup) => {
@@ -1825,7 +2465,6 @@ export default function DashboardAdmin() {
 
                                 return (
                                   <div key={niveauGroup.niveau} className="border rounded-lg overflow-hidden" style={{ borderColor: MEDICAL_COLORS.gray200 }}>
-                                    {/* NIVEAU */}
                                     <button
                                       onClick={() => toggleNiveauN(filiereGroup.filiere, niveauGroup.niveau)}
                                       className="w-full px-4 py-3 flex items-center justify-between hover:opacity-90 transition-all"
@@ -1847,7 +2486,6 @@ export default function DashboardAdmin() {
                                       </span>
                                     </button>
 
-                                    {/* SEMESTRES */}
                                     {isExpandedNiveauN && (
                                       <div className="p-4 space-y-3" style={{ backgroundColor: MEDICAL_COLORS.gray50 }}>
                                         {niveauGroup.semestres.map((semestreGroup) => {
@@ -1856,7 +2494,6 @@ export default function DashboardAdmin() {
 
                                           return (
                                             <div key={semestreGroup.semestre} className="border rounded-lg overflow-hidden bg-white" style={{ borderColor: MEDICAL_COLORS.gray200 }}>
-                                              {/* SEMESTRE */}
                                               <button
                                                 onClick={() => toggleSemestreN(filiereGroup.filiere, niveauGroup.niveau, semestreGroup.semestre)}
                                                 className="w-full px-4 py-2 flex items-center justify-between hover:opacity-90"
@@ -1878,7 +2515,6 @@ export default function DashboardAdmin() {
                                                 </span>
                                               </button>
 
-                                              {/* SESSIONS (NORMALE + RATTRAPAGE) */}
                                               {isExpandedSemestreN && (
                                                 <div className="p-3 space-y-3">
                                                   {semestreGroup.sessions.map((sessionGroup) => {
@@ -1886,7 +2522,6 @@ export default function DashboardAdmin() {
 
                                                     return (
                                                       <div key={sessionGroup.session}>
-                                                        {/* HEADER SESSION */}
                                                         <div
                                                           className="px-3 py-2 rounded-lg flex items-center justify-between mb-2"
                                                           style={{
@@ -1908,7 +2543,6 @@ export default function DashboardAdmin() {
                                                           </span>
                                                         </div>
 
-                                                        {/* LISTE DES NOTES */}
                                                         <div className="space-y-2">
                                                           {sessionGroup.notes.map((note) => (
                                                             <div
@@ -1917,7 +2551,6 @@ export default function DashboardAdmin() {
                                                               style={{ borderColor: MEDICAL_COLORS.gray200, backgroundColor: 'white' }}
                                                             >
                                                               <div className="flex items-start justify-between">
-                                                                {/* INFOS ÉTUDIANT + COURS */}
                                                                 <div className="flex-1">
                                                                   <div className="flex items-center gap-2 mb-1">
                                                                     <span className="text-lg">👨‍🎓</span>
@@ -1934,7 +2567,6 @@ export default function DashboardAdmin() {
                                                                   </div>
 
                                                                   <div className="flex items-center gap-3">
-                                                                    {/* NOTE */}
                                                                     <span
                                                                       className="px-3 py-1 rounded-full text-sm font-bold"
                                                                       style={{
@@ -1945,7 +2577,6 @@ export default function DashboardAdmin() {
                                                                       {note.valeur}/20
                                                                     </span>
 
-                                                                    {/* BADGE RATTRAPÉ */}
                                                                     {note.est_rattrape && (
                                                                       <span
                                                                         className="px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
@@ -1955,14 +2586,12 @@ export default function DashboardAdmin() {
                                                                       </span>
                                                                     )}
 
-                                                                    {/* DATE */}
                                                                     <span className="text-xs" style={{ color: MEDICAL_COLORS.gray500 }}>
                                                                       📅 {new Date(note.date_evaluation).toLocaleDateString('fr-FR')}
                                                                     </span>
                                                                   </div>
                                                                 </div>
 
-                                                                {/* ACTIONS */}
                                                                 <div className="flex gap-2 ml-3">
                                                                   <button
                                                                     onClick={() => handleOpenModalNote(note)}
@@ -2009,7 +2638,7 @@ export default function DashboardAdmin() {
         )}
       </div>
 
-      {/* ===== MODALS ===== */}
+      {/* ===== MODALS — 100% inchangés ===== */}
 
       {/* MODAL ENSEIGNANT */}
       <Modal
@@ -2037,7 +2666,6 @@ export default function DashboardAdmin() {
           <Input label={editingEnseignant ? 'Nouveau mot de passe (laisser vide pour ne pas changer)' : 'Mot de passe'} type="password" name="mot_de_passe" value={formEnseignant.mot_de_passe} onChange={handleChangeEnseignant} error={errorsEnseignant.mot_de_passe?.[0]} required={!editingEnseignant} placeholder="••••••••" />
           <Input label="Date de naissance" type="date" name="date_naissance" value={formEnseignant.date_naissance} onChange={handleChangeEnseignant} error={errorsEnseignant.date_naissance?.[0]} required />
           <Input label="Spécialité" type="text" name="specialite" value={formEnseignant.specialite} onChange={handleChangeEnseignant} error={errorsEnseignant.specialite?.[0]} placeholder="Cardiologie" />
-
           <div className="flex gap-4 mt-6">
             <Button type="submit" variant="primary" className="flex-1" disabled={loadingEnseignant}>
               {loadingEnseignant ? 'Envoi...' : editingEnseignant ? 'Modifier' : 'Créer'}
@@ -2076,16 +2704,8 @@ export default function DashboardAdmin() {
           <Input label="Date de naissance" type="date" name="date_naissance" value={formEtudiant.date_naissance} onChange={handleChangeEtudiant} error={errorsEtudiant.date_naissance?.[0]} required />
 
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>
-              Filière
-            </label>
-            <select
-              name="filiere"
-              value={formEtudiant.filiere}
-              onChange={handleChangeEtudiant}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none"
-              style={{ borderColor: MEDICAL_COLORS.gray300 }}
-            >
+            <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>Filière</label>
+            <select name="filiere" value={formEtudiant.filiere} onChange={handleChangeEtudiant} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none" style={{ borderColor: MEDICAL_COLORS.gray300 }}>
               <option value="">-- Sélectionner une filière --</option>
               <option value="Médecine">🩺 Médecine</option>
               <option value="Pharmacie">💊 Pharmacie</option>
@@ -2094,25 +2714,14 @@ export default function DashboardAdmin() {
               <option value="Pédiatrie">👶 Pédiatrie</option>
               <option value="Gynécologie">🌸 Gynécologie</option>
             </select>
-            {errorsEtudiant.filiere && (
-              <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>
-                {errorsEtudiant.filiere[0]}
-              </p>
-            )}
+            {errorsEtudiant.filiere && <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>{errorsEtudiant.filiere[0]}</p>}
           </div>
 
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>
               Niveau <span style={{ color: MEDICAL_COLORS.accent }}>*</span>
             </label>
-            <select
-              name="niveau"
-              value={formEtudiant.niveau}
-              onChange={handleChangeEtudiant}
-              required
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none"
-              style={{ borderColor: MEDICAL_COLORS.gray300 }}
-            >
+            <select name="niveau" value={formEtudiant.niveau} onChange={handleChangeEtudiant} required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none" style={{ borderColor: MEDICAL_COLORS.gray300 }}>
               <option value="">-- Sélectionner un niveau --</option>
               <option value="L1">📘 L1 - Licence 1</option>
               <option value="L2">📗 L2 - Licence 2</option>
@@ -2121,11 +2730,7 @@ export default function DashboardAdmin() {
               <option value="M2">📔 M2 - Master 2</option>
               <option value="Doctorat">🎓 Doctorat</option>
             </select>
-            {errorsEtudiant.niveau && (
-              <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>
-                {errorsEtudiant.niveau[0]}
-              </p>
-            )}
+            {errorsEtudiant.niveau && <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>{errorsEtudiant.niveau[0]}</p>}
           </div>
 
           <div className="flex gap-4 mt-6">
@@ -2146,14 +2751,7 @@ export default function DashboardAdmin() {
         title={editingCours ? 'Modifier un cours' : 'Ajouter un cours'}
       >
         {messageCours.text && (
-          <div
-            className={`mb-4 p-4 rounded-lg border-l-4`}
-            style={{
-              backgroundColor: messageCours.type === 'success' ? MEDICAL_COLORS.bgGreen : '#FEE2E2',
-              borderLeftColor: messageCours.type === 'success' ? MEDICAL_COLORS.secondary : MEDICAL_COLORS.accent,
-              color: messageCours.type === 'success' ? MEDICAL_COLORS.secondary : MEDICAL_COLORS.accent,
-            }}
-          >
+          <div className={`mb-4 p-4 rounded-lg border-l-4`} style={{ backgroundColor: messageCours.type === 'success' ? MEDICAL_COLORS.bgGreen : '#FEE2E2', borderLeftColor: messageCours.type === 'success' ? MEDICAL_COLORS.secondary : MEDICAL_COLORS.accent, color: messageCours.type === 'success' ? MEDICAL_COLORS.secondary : MEDICAL_COLORS.accent }}>
             {messageCours.text}
           </div>
         )}
@@ -2163,36 +2761,14 @@ export default function DashboardAdmin() {
           <Input label="Titre" type="text" name="titre" value={formCours.titre} onChange={handleChangeCours} error={errorsCours.titre?.[0]} required placeholder="Cardiologie Générale" />
 
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>
-              Description
-            </label>
-            <textarea
-              name="description"
-              value={formCours.description}
-              onChange={handleChangeCours}
-              rows="3"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none"
-              style={{ borderColor: MEDICAL_COLORS.gray300 }}
-              placeholder="Description du cours"
-            />
-            {errorsCours.description && (
-              <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>
-                {errorsCours.description[0]}
-              </p>
-            )}
+            <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>Description</label>
+            <textarea name="description" value={formCours.description} onChange={handleChangeCours} rows="3" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none" style={{ borderColor: MEDICAL_COLORS.gray300 }} placeholder="Description du cours" />
+            {errorsCours.description && <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>{errorsCours.description[0]}</p>}
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>
-              Filière
-            </label>
-            <select
-              name="filiere"
-              value={formCours.filiere}
-              onChange={handleChangeCours}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none"
-              style={{ borderColor: MEDICAL_COLORS.gray300 }}
-            >
+            <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>Filière</label>
+            <select name="filiere" value={formCours.filiere} onChange={handleChangeCours} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none" style={{ borderColor: MEDICAL_COLORS.gray300 }}>
               <option value="">-- Sélectionner une filière --</option>
               <option value="Médecine">🩺 Médecine</option>
               <option value="Pharmacie">💊 Pharmacie</option>
@@ -2204,16 +2780,8 @@ export default function DashboardAdmin() {
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>
-              Niveau
-            </label>
-            <select
-              name="niveau"
-              value={formCours.niveau}
-              onChange={handleChangeCours}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none"
-              style={{ borderColor: MEDICAL_COLORS.gray300 }}
-            >
+            <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>Niveau</label>
+            <select name="niveau" value={formCours.niveau} onChange={handleChangeCours} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none" style={{ borderColor: MEDICAL_COLORS.gray300 }}>
               <option value="">-- Sélectionner un niveau --</option>
               <option value="L1">📘 L1 - Licence 1</option>
               <option value="L2">📗 L2 - Licence 2</option>
@@ -2228,14 +2796,7 @@ export default function DashboardAdmin() {
             <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>
               Enseignant <span style={{ color: MEDICAL_COLORS.accent }}>*</span>
             </label>
-            <select
-              name="id_enseignant"
-              value={formCours.id_enseignant}
-              onChange={handleChangeCours}
-              required
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none"
-              style={{ borderColor: MEDICAL_COLORS.gray300 }}
-            >
+            <select name="id_enseignant" value={formCours.id_enseignant} onChange={handleChangeCours} required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none" style={{ borderColor: MEDICAL_COLORS.gray300 }}>
               <option value="">Sélectionner un enseignant</option>
               {enseignants.map((ens) => (
                 <option key={ens.id_enseignant} value={ens.id_enseignant}>
@@ -2243,11 +2804,7 @@ export default function DashboardAdmin() {
                 </option>
               ))}
             </select>
-            {errorsCours.id_enseignant && (
-              <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>
-                {errorsCours.id_enseignant[0]}
-              </p>
-            )}
+            {errorsCours.id_enseignant && <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>{errorsCours.id_enseignant[0]}</p>}
           </div>
 
           <div className="flex gap-4 mt-6">
@@ -2261,28 +2818,20 @@ export default function DashboardAdmin() {
         </form>
       </Modal>
 
-      {/* 🆕 MODAL NOTE (AVEC SEMESTRE) */}
-      {/* 🆕 MODAL NOTE AVEC FILTRES EN CASCADE */}
+      {/* MODAL NOTE AVEC FILTRES EN CASCADE — 100% inchangé */}
       <Modal
         isOpen={showModalNote}
         onClose={() => !loadingNote && setShowModalNote(false)}
         title={editingNote ? 'Modifier une note' : 'Ajouter une note'}
       >
         {messageNote.text && (
-          <div
-            className={`mb-4 p-4 rounded-lg border-l-4`}
-            style={{
-              backgroundColor: messageNote.type === 'success' ? MEDICAL_COLORS.bgGreen : '#FEE2E2',
-              borderLeftColor: messageNote.type === 'success' ? MEDICAL_COLORS.secondary : MEDICAL_COLORS.accent,
-              color: messageNote.type === 'success' ? MEDICAL_COLORS.secondary : MEDICAL_COLORS.accent,
-            }}
-          >
+          <div className={`mb-4 p-4 rounded-lg border-l-4`} style={{ backgroundColor: messageNote.type === 'success' ? MEDICAL_COLORS.bgGreen : '#FEE2E2', borderLeftColor: messageNote.type === 'success' ? MEDICAL_COLORS.secondary : MEDICAL_COLORS.accent, color: messageNote.type === 'success' ? MEDICAL_COLORS.secondary : MEDICAL_COLORS.accent }}>
             {messageNote.text}
           </div>
         )}
 
         <form onSubmit={handleSubmitNote}>
-          {/* 🆕 ÉTAPE 1 : FILIÈRE */}
+          {/* ÉTAPE 1 : FILIÈRE */}
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>
               Filière <span style={{ color: MEDICAL_COLORS.accent }}>*</span>
@@ -2292,14 +2841,7 @@ export default function DashboardAdmin() {
               value={formNote.filiere_note || ''}
               onChange={(e) => {
                 const filiere = e.target.value;
-                setFormNote(prev => ({
-                  ...prev,
-                  filiere_note: filiere,
-                  niveau_note: '', // Reset niveau
-                  id_etudiant: '', // Reset étudiant
-                  id_cours: '', // Reset cours
-                  semestre: '' // Reset semestre
-                }));
+                setFormNote(prev => ({ ...prev, filiere_note: filiere, niveau_note: '', id_etudiant: '', id_cours: '', semestre: '' }));
               }}
               required
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none"
@@ -2315,7 +2857,7 @@ export default function DashboardAdmin() {
             </select>
           </div>
 
-          {/* 🆕 ÉTAPE 2 : NIVEAU (si filière choisie) */}
+          {/* ÉTAPE 2 : NIVEAU */}
           {formNote.filiere_note && (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>
@@ -2326,13 +2868,7 @@ export default function DashboardAdmin() {
                 value={formNote.niveau_note || ''}
                 onChange={(e) => {
                   const niveau = e.target.value;
-                  setFormNote(prev => ({
-                    ...prev,
-                    niveau_note: niveau,
-                    id_etudiant: '', // Reset étudiant
-                    id_cours: '', // Reset cours
-                    semestre: '' // Reset semestre
-                  }));
+                  setFormNote(prev => ({ ...prev, niveau_note: niveau, id_etudiant: '', id_cours: '', semestre: '' }));
                 }}
                 required
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none"
@@ -2349,150 +2885,59 @@ export default function DashboardAdmin() {
             </div>
           )}
 
-          {/* 🆕 ÉTAPE 3 : COURS (filtré par filière + niveau) */}
+          {/* ÉTAPE 3 : COURS */}
           {formNote.niveau_note && (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>
                 Cours <span style={{ color: MEDICAL_COLORS.accent }}>*</span>
               </label>
-              <select
-                name="id_cours"
-                value={formNote.id_cours}
-                onChange={handleChangeNote}
-                required
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none"
-                style={{ borderColor: MEDICAL_COLORS.gray300 }}
-              >
+              <select name="id_cours" value={formNote.id_cours} onChange={handleChangeNote} required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none" style={{ borderColor: MEDICAL_COLORS.gray300 }}>
                 <option value="">Sélectionner un cours</option>
-                {cours
-                  .filter(c =>
-                    (!c.filiere || c.filiere === formNote.filiere_note) &&
-                    (!c.niveau || c.niveau === formNote.niveau_note)
-                  )
-                  .map((c) => (
-                    <option key={c.id_cours} value={c.id_cours}>
-                      {c.code} - {c.titre}
-                    </option>
-                  ))}
+                {cours.filter(c => (!c.filiere || c.filiere === formNote.filiere_note) && (!c.niveau || c.niveau === formNote.niveau_note)).map((c) => (
+                  <option key={c.id_cours} value={c.id_cours}>{c.code} - {c.titre}</option>
+                ))}
               </select>
-              {errorsNote.id_cours && (
-                <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>
-                  {errorsNote.id_cours[0]}
-                </p>
-              )}
+              {errorsNote.id_cours && <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>{errorsNote.id_cours[0]}</p>}
             </div>
           )}
 
-          {/* 🆕 ÉTAPE 4 : ÉTUDIANT (filtré par filière + niveau) */}
+          {/* ÉTAPE 4 : ÉTUDIANT */}
           {formNote.niveau_note && (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>
                 Étudiant <span style={{ color: MEDICAL_COLORS.accent }}>*</span>
               </label>
-              <select
-                name="id_etudiant"
-                value={formNote.id_etudiant}
-                onChange={handleChangeNote}
-                required
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none"
-                style={{ borderColor: MEDICAL_COLORS.gray300 }}
-              >
+              <select name="id_etudiant" value={formNote.id_etudiant} onChange={handleChangeNote} required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none" style={{ borderColor: MEDICAL_COLORS.gray300 }}>
                 <option value="">Sélectionner un étudiant</option>
-                {etudiants
-                  .filter(etu =>
-                    etu.filiere === formNote.filiere_note &&
-                    etu.niveau === formNote.niveau_note
-                  )
-                  .map((etu) => (
-                    <option key={etu.id_etudiant} value={etu.id_etudiant}>
-                      {etu.prenom} {etu.nom} ({etu.matricule})
-                    </option>
-                  ))}
+                {etudiants.filter(etu => etu.filiere === formNote.filiere_note && etu.niveau === formNote.niveau_note).map((etu) => (
+                  <option key={etu.id_etudiant} value={etu.id_etudiant}>{etu.prenom} {etu.nom} ({etu.matricule})</option>
+                ))}
               </select>
-              {errorsNote.id_etudiant && (
-                <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>
-                  {errorsNote.id_etudiant[0]}
-                </p>
-              )}
+              {errorsNote.id_etudiant && <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>{errorsNote.id_etudiant[0]}</p>}
             </div>
           )}
 
-          {/* 🆕 ÉTAPE 5 : SEMESTRE (adapté au niveau) */}
+          {/* ÉTAPE 5 : SEMESTRE */}
           {formNote.niveau_note && (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2" style={{ color: MEDICAL_COLORS.gray700 }}>
                 Semestre <span style={{ color: MEDICAL_COLORS.accent }}>*</span>
               </label>
-              <select
-                name="semestre"
-                value={formNote.semestre}
-                onChange={handleChangeNote}
-                required
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none"
-                style={{ borderColor: MEDICAL_COLORS.gray300 }}
-              >
+              <select name="semestre" value={formNote.semestre} onChange={handleChangeNote} required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:outline-none" style={{ borderColor: MEDICAL_COLORS.gray300 }}>
                 <option value="">-- Sélectionner un semestre --</option>
-                {/* L1, L2, L3 : S1 à S6 */}
-                {['L1', 'L2', 'L3'].includes(formNote.niveau_note) && (
-                  <>
-                    <option value="S1">📅 S1 - Semestre 1</option>
-                    <option value="S2">📅 S2 - Semestre 2</option>
-                    <option value="S3">📅 S3 - Semestre 3</option>
-                    <option value="S4">📅 S4 - Semestre 4</option>
-                    <option value="S5">📅 S5 - Semestre 5</option>
-                    <option value="S6">📅 S6 - Semestre 6</option>
-                  </>
-                )}
-                {/* M1, M2 : S1 à S4 */}
-                {['M1', 'M2'].includes(formNote.niveau_note) && (
-                  <>
-                    <option value="S1">📅 S1 - Semestre 1</option>
-                    <option value="S2">📅 S2 - Semestre 2</option>
-                    <option value="S3">📅 S3 - Semestre 3</option>
-                    <option value="S4">📅 S4 - Semestre 4</option>
-                  </>
-                )}
-                {/* Doctorat : S1 et S2 */}
-                {formNote.niveau_note === 'Doctorat' && (
-                  <>
-                    <option value="S1">📅 S1 - Semestre 1</option>
-                    <option value="S2">📅 S2 - Semestre 2</option>
-                  </>
-                )}
+                {['L1', 'L2', 'L3'].includes(formNote.niveau_note) && (<><option value="S1">📅 S1 - Semestre 1</option><option value="S2">📅 S2 - Semestre 2</option><option value="S3">📅 S3 - Semestre 3</option><option value="S4">📅 S4 - Semestre 4</option><option value="S5">📅 S5 - Semestre 5</option><option value="S6">📅 S6 - Semestre 6</option></>)}
+                {['M1', 'M2'].includes(formNote.niveau_note) && (<><option value="S1">📅 S1 - Semestre 1</option><option value="S2">📅 S2 - Semestre 2</option><option value="S3">📅 S3 - Semestre 3</option><option value="S4">📅 S4 - Semestre 4</option></>)}
+                {formNote.niveau_note === 'Doctorat' && (<><option value="S1">📅 S1 - Semestre 1</option><option value="S2">📅 S2 - Semestre 2</option></>)}
               </select>
-              {errorsNote.semestre && (
-                <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>
-                  {errorsNote.semestre[0]}
-                </p>
-              )}
+              {errorsNote.semestre && <p className="text-sm mt-1" style={{ color: MEDICAL_COLORS.accent }}>{errorsNote.semestre[0]}</p>}
             </div>
           )}
 
           {/* NOTE */}
           {formNote.semestre && (
             <>
-              <Input
-                label="Note (sur 20)"
-                type="number"
-                name="valeur"
-                value={formNote.valeur}
-                onChange={handleChangeNote}
-                error={errorsNote.valeur?.[0]}
-                required
-                placeholder="15.5"
-                min="0"
-                max="20"
-                step="0.5"
-              />
-              <Input
-                label="Date d'évaluation"
-                type="date"
-                name="date_evaluation"
-                value={formNote.date_evaluation}
-                onChange={handleChangeNote}
-                error={errorsNote.date_evaluation?.[0]}
-                required
-              />
+              <Input label="Note (sur 20)" type="number" name="valeur" value={formNote.valeur} onChange={handleChangeNote} error={errorsNote.valeur?.[0]} required placeholder="15.5" min="0" max="20" step="0.5" />
+              <Input label="Date d'évaluation" type="date" name="date_evaluation" value={formNote.date_evaluation} onChange={handleChangeNote} error={errorsNote.date_evaluation?.[0]} required />
             </>
           )}
 

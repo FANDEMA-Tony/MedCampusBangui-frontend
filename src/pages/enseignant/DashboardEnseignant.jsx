@@ -6,6 +6,14 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
+// 🆕 IMPORTS ANALYTICS
+import { useAnalytics } from '../../hooks/useAnalytics';
+import BarChart from '../../components/charts/BarChart';
+import LineChart from '../../components/charts/LineChart';
+import PieChart from '../../components/charts/PieChart';
+// ✅ IMPORTS EXPORT PDF
+import ExportButton from '../../components/export/ExportButton';
+import { generateRapportEnseignantPDF } from '../../utils/pdfGenerator';
 
 // 🎨 PALETTE COULEURS
 const COLORS = {
@@ -16,13 +24,13 @@ const COLORS = {
   teal: '#14B8A6',
   orange: '#F97316',
   pink: '#EC4899',
-  
+
   bgBlue: '#EFF6FF',
   bgGreen: '#F0FDF4',
   bgPurple: '#F5F3FF',
   bgOrange: '#FFF7ED',
   bgPink: '#FFF0F7',
-  
+
   gray50: '#F9FAFB',
   gray100: '#F3F4F6',
   gray200: '#E5E7EB',
@@ -59,12 +67,12 @@ export default function DashboardEnseignant() {
   const [loading, setLoading] = useState(true);
   const [loadingNote, setLoadingNote] = useState(false);
   const [loadingEtudiants, setLoadingEtudiants] = useState(false);
-  const [loadingNotesGrouped, setLoadingNotesGrouped] = useState(false); // 🆕
+  const [loadingNotesGrouped, setLoadingNotesGrouped] = useState(false);
 
   const [cours, setCours] = useState([]);
   const [etudiants, setEtudiants] = useState([]);
   const [notes, setNotes] = useState([]);
-  const [notesGrouped, setNotesGrouped] = useState([]); // 🆕
+  const [notesGrouped, setNotesGrouped] = useState([]);
 
   const [stats, setStats] = useState({
     totalCours: 0,
@@ -86,7 +94,7 @@ export default function DashboardEnseignant() {
   const [errorsNote, setErrorsNote] = useState({});
   const [messageNote, setMessageNote] = useState({ type: '', text: '' });
 
-  // 🆕 Modal notes attribuées
+  // Modal notes attribuées
   const [showModalNotesAttribuees, setShowModalNotesAttribuees] = useState(false);
   const [expandedFilieres, setExpandedFilieres] = useState({});
   const [expandedNiveaux, setExpandedNiveaux] = useState({});
@@ -95,7 +103,7 @@ export default function DashboardEnseignant() {
   const [showModalDetailsCours, setShowModalDetailsCours] = useState(false);
   const [coursSelectionne, setCoursSelectionne] = useState(null);
 
-  // 🆕 Modal modifier note
+  // Modal modifier note
   const [showModalModifierNote, setShowModalModifierNote] = useState(false);
   const [noteAModifier, setNoteAModifier] = useState(null);
   const [formModifierNote, setFormModifierNote] = useState({
@@ -103,6 +111,15 @@ export default function DashboardEnseignant() {
     semestre: '',
     date_evaluation: '',
   });
+
+  // 🆕 HOOK ANALYTICS
+  const { data: analyticsData, loading: analyticsLoading } = useAnalytics();
+
+  // 🔍 DEBUG ANALYTICS
+  useEffect(() => {
+    console.log('📊 Analytics Enseignant Data:', analyticsData);
+    console.log('⏳ Analytics Loading:', analyticsLoading);
+  }, [analyticsData, analyticsLoading]);
 
   useEffect(() => {
     fetchData();
@@ -121,7 +138,7 @@ export default function DashboardEnseignant() {
       try {
         const notesResponse = await noteService.getMesNotes();
         let toutesLesNotes = [];
-        
+
         if (notesResponse.data.success) {
           if (notesResponse.data.data?.data) {
             toutesLesNotes = notesResponse.data.data.data;
@@ -129,12 +146,12 @@ export default function DashboardEnseignant() {
             toutesLesNotes = notesResponse.data.data;
           }
         }
-        
+
         setNotes(toutesLesNotes);
 
         const somme = toutesLesNotes.reduce((acc, note) => acc + parseFloat(note.valeur || 0), 0);
         const moyenne = toutesLesNotes.length > 0 ? (somme / toutesLesNotes.length).toFixed(2) : 0;
-        const tauxReussite = toutesLesNotes.length > 0 
+        const tauxReussite = toutesLesNotes.length > 0
           ? Math.round((toutesLesNotes.filter(n => n.valeur >= 10).length / toutesLesNotes.length) * 100)
           : 0;
 
@@ -162,14 +179,14 @@ export default function DashboardEnseignant() {
     }
   };
 
-  // 🆕 CHARGER NOTES GROUPÉES
+  // CHARGER NOTES GROUPÉES
   const handleVoirNotesAttribuees = async () => {
     try {
       setLoadingNotesGrouped(true);
       setShowModalNotesAttribuees(true);
-      
+
       const response = await noteService.getGrouped();
-      
+
       if (response.data.success) {
         setNotesGrouped(response.data.data || []);
       }
@@ -181,7 +198,7 @@ export default function DashboardEnseignant() {
     }
   };
 
-  // 🆕 TOGGLE ACCORDÉONS
+  // TOGGLE ACCORDÉONS
   const toggleFiliere = (filiere) => {
     setExpandedFilieres(prev => ({ ...prev, [filiere]: !prev[filiere] }));
   };
@@ -190,7 +207,7 @@ export default function DashboardEnseignant() {
     setExpandedNiveaux(prev => ({ ...prev, [filiereNiveau]: !prev[filiereNiveau] }));
   };
 
-  // 🆕 MODIFIER NOTE
+  // MODIFIER NOTE
   const handleModifierNote = (note) => {
     setNoteAModifier(note);
     setFormModifierNote({
@@ -218,7 +235,7 @@ export default function DashboardEnseignant() {
           setMessageNote({ type: '', text: '' });
           setLoadingNote(false);
           fetchData();
-          handleVoirNotesAttribuees(); // Recharger notes groupées
+          handleVoirNotesAttribuees();
         }, 1500);
       }
     } catch (error) {
@@ -231,17 +248,17 @@ export default function DashboardEnseignant() {
     }
   };
 
-  // 🆕 SUPPRIMER NOTE
+  // SUPPRIMER NOTE
   const handleSupprimerNote = async (idNote) => {
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette note ?')) return;
 
     try {
       const response = await noteService.delete(idNote);
-      
+
       if (response.data.success) {
         alert('Note supprimée avec succès !');
         fetchData();
-        handleVoirNotesAttribuees(); // Recharger notes groupées
+        handleVoirNotesAttribuees();
       }
     } catch (error) {
       console.error('Erreur suppression note:', error);
@@ -251,12 +268,12 @@ export default function DashboardEnseignant() {
 
   const handleCoursChange = async (e) => {
     const { name, value } = e.target;
-    setFormNote((prev) => ({ 
-      ...prev, 
+    setFormNote((prev) => ({
+      ...prev,
       [name]: value,
       id_etudiant: ''
     }));
-    
+
     if (errorsNote[name]) {
       setErrorsNote((prev) => ({ ...prev, [name]: '' }));
     }
@@ -265,7 +282,7 @@ export default function DashboardEnseignant() {
       try {
         setLoadingEtudiants(true);
         const response = await etudiantService.getEtudiantsParCours(value);
-        
+
         if (response.data.success) {
           setEtudiants(response.data.data.etudiants || []);
           const coursInfo = response.data.data.cours;
@@ -367,15 +384,51 @@ export default function DashboardEnseignant() {
     return (somme / notesCours.length).toFixed(2);
   };
 
+  // 🆕 HELPER : Couleur selon taux de réussite
+  const getTauxColor = (taux) => {
+    if (taux >= 75) return { color: COLORS.secondary, bg: COLORS.bgGreen, label: '🏆 Excellent' };
+    if (taux >= 50) return { color: COLORS.orange, bg: COLORS.bgOrange, label: '📈 Bien' };
+    return { color: COLORS.accent, bg: '#FFF0F0', label: '⚠️ À améliorer' };
+  };
+
+  // ─────────────────────────────────────────────
+  // ✅ HANDLER EXPORT RAPPORT PDF
+  // ─────────────────────────────────────────────
+  const handleExportRapport = async () => {
+    const enseignantData = {
+      prenom:     user?.prenom     || '',
+      nom:        user?.nom        || '',
+      email:      user?.email      || '',
+      specialite: user?.specialite || '',
+    };
+
+    const statsGenerales = analyticsData?.stats_generales || {
+      nb_cours:           stats.totalCours,
+      nb_etudiants_total: etudiants.length,
+      nb_notes_total:     stats.totalNotes,
+      moyenne_generale:   stats.moyenneGenerale,
+    };
+
+    const performanceCours   = analyticsData?.performance_cours   || [];
+    const distributionNotes  = analyticsData?.distribution_notes  || [];
+
+    await generateRapportEnseignantPDF(
+      enseignantData,
+      performanceCours,
+      statsGenerales,
+      distributionNotes
+    );
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: COLORS.gray50 }}>
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* EN-TÊTE */}
+        {/* EN-TÊTE — avec bouton export */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -392,14 +445,26 @@ export default function DashboardEnseignant() {
               </div>
             </div>
 
-            <Button
-              variant="primary"
-              onClick={() => setShowModalNote(true)}
-              className="flex items-center gap-2 shadow-lg hover:shadow-xl transition-all"
-            >
-              <span className="text-lg">➕</span>
-              Ajouter une note
-            </Button>
+            {/* ✅ BOUTONS ACTIONS + EXPORT */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Bouton export rapport PDF */}
+              <ExportButton
+                onClick={handleExportRapport}
+                label="Rapport PDF"
+                icon="📊"
+                variant="pdf"
+                size="md"
+                tooltip="Télécharger votre rapport de performance pédagogique"
+              />
+              <Button
+                variant="primary"
+                onClick={() => setShowModalNote(true)}
+                className="flex items-center gap-2 shadow-lg hover:shadow-xl transition-all"
+              >
+                <span className="text-lg">➕</span>
+                Ajouter une note
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -413,11 +478,11 @@ export default function DashboardEnseignant() {
               <span className="text-3xl font-bold" style={{ color: COLORS.primary }}>{stats.totalCours}</span>
             </div>
             <p className="text-sm font-medium" style={{ color: COLORS.gray700 }}>Mes Cours</p>
-            <p className="text-xs mt-1" style={{ color: COLORS.gray500 }}>Cours actifs</p>
+            <p className="text-xs mt-1" style={{ color: COLORS.gray600 }}>Cours actifs</p>
           </div>
 
-          {/* 🆕 CARD NOTES ATTRIBUÉES CLIQUABLE */}
-          <div 
+          {/* CARD NOTES ATTRIBUÉES CLIQUABLE */}
+          <div
             onClick={handleVoirNotesAttribuees}
             className="bg-white rounded-2xl shadow-lg p-6 border hover:shadow-2xl transition-all cursor-pointer group"
             style={{ borderColor: COLORS.gray200 }}
@@ -429,7 +494,7 @@ export default function DashboardEnseignant() {
               <span className="text-3xl font-bold" style={{ color: COLORS.secondary }}>{stats.totalNotes}</span>
             </div>
             <p className="text-sm font-medium" style={{ color: COLORS.gray700 }}>Notes Attribuées</p>
-            <p className="text-xs mt-1 group-hover:text-green-600 transition-colors" style={{ color: COLORS.gray500 }}>
+            <p className="text-xs mt-1 group-hover:text-green-600 transition-colors" style={{ color: COLORS.gray600 }}>
               Cliquer pour détails →
             </p>
           </div>
@@ -442,7 +507,7 @@ export default function DashboardEnseignant() {
               <span className="text-3xl font-bold" style={{ color: COLORS.purple }}>{stats.moyenneGenerale}/20</span>
             </div>
             <p className="text-sm font-medium" style={{ color: COLORS.gray700 }}>Moyenne Générale</p>
-            <p className="text-xs mt-1" style={{ color: COLORS.gray500 }}>Toutes classes</p>
+            <p className="text-xs mt-1" style={{ color: COLORS.gray600 }}>Toutes classes</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-6 border hover:shadow-xl transition-all" style={{ borderColor: COLORS.gray200 }}>
@@ -453,7 +518,7 @@ export default function DashboardEnseignant() {
               <span className="text-3xl font-bold" style={{ color: COLORS.orange }}>{stats.tauxReussite}%</span>
             </div>
             <p className="text-sm font-medium" style={{ color: COLORS.gray700 }}>Taux de Réussite</p>
-            <p className="text-xs mt-1" style={{ color: COLORS.gray500 }}>Notes ≥ 10/20</p>
+            <p className="text-xs mt-1" style={{ color: COLORS.gray600 }}>Notes ≥ 10/20</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-6 border hover:shadow-xl transition-all" style={{ borderColor: COLORS.gray200 }}>
@@ -464,7 +529,7 @@ export default function DashboardEnseignant() {
               <span className="text-3xl font-bold" style={{ color: COLORS.teal }}>{etudiants.length}</span>
             </div>
             <p className="text-sm font-medium" style={{ color: COLORS.gray700 }}>Étudiants</p>
-            <p className="text-xs mt-1" style={{ color: COLORS.gray500 }}>Cours sélectionné</p>
+            <p className="text-xs mt-1" style={{ color: COLORS.gray600 }}>Cours sélectionné</p>
           </div>
         </div>
 
@@ -495,7 +560,7 @@ export default function DashboardEnseignant() {
                 <span className="text-5xl">📚</span>
               </div>
               <p className="text-xl font-semibold mb-2" style={{ color: COLORS.gray700 }}>Aucun cours pour le moment</p>
-              <p className="text-sm" style={{ color: COLORS.gray500 }}>Les cours qui vous seront assignés apparaîtront ici</p>
+              <p className="text-sm" style={{ color: COLORS.gray600 }}>Les cours qui vous seront assignés apparaîtront ici</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -595,9 +660,256 @@ export default function DashboardEnseignant() {
             </div>
           )}
         </div>
+
+        {/* =====================================================
+            🆕 SECTION ANALYTICS - MES STATISTIQUES D'ENSEIGNEMENT
+            ===================================================== */}
+        <div className="mt-8 bg-white rounded-2xl shadow-xl p-8 border" style={{ borderColor: COLORS.gray200 }}>
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center">
+                <span className="text-2xl">📈</span>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold" style={{ color: COLORS.gray900 }}>Mes Statistiques d'Enseignement</h2>
+                <p className="text-sm" style={{ color: COLORS.gray600 }}>
+                  Analyse détaillée de vos performances pédagogiques
+                </p>
+              </div>
+            </div>
+
+            {/* ✅ BOUTON EXPORT dans la section analytics */}
+            <ExportButton
+              onClick={handleExportRapport}
+              label="Exporter Rapport"
+              icon="📄"
+              variant="pdf"
+              size="sm"
+              tooltip="Télécharger le rapport complet en PDF"
+            />
+          </div>
+
+          {analyticsLoading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: COLORS.teal }}></div>
+              <p className="mt-4" style={{ color: COLORS.gray600 }}>Chargement des statistiques...</p>
+            </div>
+          ) : analyticsData ? (
+            <div className="space-y-8">
+
+              {/* 🆕 BLOC 1 : STATS GÉNÉRALES ENSEIGNANT */}
+              {analyticsData.stats_generales && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-4 rounded-xl border" style={{ backgroundColor: COLORS.bgBlue, borderColor: COLORS.gray200 }}>
+                    <p className="text-3xl font-bold mb-1" style={{ color: COLORS.primary }}>
+                      {analyticsData.stats_generales.nb_cours || 0}
+                    </p>
+                    <p className="text-xs font-medium" style={{ color: COLORS.gray600 }}>Cours enseignés</p>
+                  </div>
+                  <div className="text-center p-4 rounded-xl border" style={{ backgroundColor: COLORS.bgGreen, borderColor: COLORS.gray200 }}>
+                    <p className="text-3xl font-bold mb-1" style={{ color: COLORS.secondary }}>
+                      {analyticsData.stats_generales.nb_etudiants_total || 0}
+                    </p>
+                    <p className="text-xs font-medium" style={{ color: COLORS.gray600 }}>Étudiants notés</p>
+                  </div>
+                  <div className="text-center p-4 rounded-xl border" style={{ backgroundColor: COLORS.bgPurple, borderColor: COLORS.gray200 }}>
+                    <p className="text-3xl font-bold mb-1" style={{ color: COLORS.purple }}>
+                      {analyticsData.stats_generales.nb_notes_total || 0}
+                    </p>
+                    <p className="text-xs font-medium" style={{ color: COLORS.gray600 }}>Notes attribuées</p>
+                  </div>
+                  <div className="text-center p-4 rounded-xl border" style={{ backgroundColor: COLORS.bgOrange, borderColor: COLORS.gray200 }}>
+                    <p className="text-3xl font-bold mb-1" style={{ color: COLORS.orange }}>
+                      {analyticsData.stats_generales.moyenne_generale || '0.00'}/20
+                    </p>
+                    <p className="text-xs font-medium" style={{ color: COLORS.gray600 }}>Moyenne générale</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 🆕 BLOC 2 : PERFORMANCE PAR COURS (BarChart) */}
+              {analyticsData.performance_cours && analyticsData.performance_cours.length > 0 && (
+                <div>
+                  <BarChart
+                    data={analyticsData.performance_cours}
+                    dataKey="moyenne"
+                    xKey="titre"
+                    title="📊 Performance par cours (Moyenne /20)"
+                    color={COLORS.primary}
+                    height={300}
+                  />
+                </div>
+              )}
+
+              {/* 🆕 BLOC 3 : TAUX DE RÉUSSITE PAR COURS + DISTRIBUTION */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                {/* Taux de réussite par cours (cards) */}
+                {analyticsData.performance_cours && analyticsData.performance_cours.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: COLORS.gray800 }}>
+                      <span>🎯</span>
+                      Taux de réussite par cours
+                    </h3>
+                    <div className="space-y-3">
+                      {analyticsData.performance_cours.map((cours, index) => {
+                        const tauxConfig = getTauxColor(parseFloat(cours.taux_reussite || 0));
+                        return (
+                          <div
+                            key={index}
+                            className="p-4 rounded-xl border hover:shadow-md transition-all"
+                            style={{ borderColor: COLORS.gray200, backgroundColor: tauxConfig.bg }}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-sm truncate" style={{ color: COLORS.gray900 }}>
+                                  {cours.titre}
+                                </p>
+                                <p className="text-xs" style={{ color: COLORS.gray600 }}>
+                                  {cours.code} • {cours.nb_notes} note{cours.nb_notes > 1 ? 's' : ''}
+                                </p>
+                              </div>
+                              <div className="text-right ml-3">
+                                <p className="text-xl font-bold" style={{ color: tauxConfig.color }}>
+                                  {cours.taux_reussite || 0}%
+                                </p>
+                                <p className="text-xs" style={{ color: tauxConfig.color }}>
+                                  {tauxConfig.label}
+                                </p>
+                              </div>
+                            </div>
+                            {/* Barre de progression */}
+                            <div className="w-full bg-white rounded-full h-2 mt-1">
+                              <div
+                                className="h-2 rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${Math.min(cours.taux_reussite || 0, 100)}%`,
+                                  backgroundColor: tauxConfig.color
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Distribution des notes (PieChart) */}
+                {analyticsData.distribution_notes && analyticsData.distribution_notes.length > 0 && (
+                  <div>
+                    <PieChart
+                      data={analyticsData.distribution_notes}
+                      dataKey="nb_notes"
+                      nameKey="tranche"
+                      title="🎓 Distribution des notes (tous cours)"
+                      height={320}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* 🆕 BLOC 4 : MEILLEURS COURS vs COURS À AMÉLIORER */}
+              {analyticsData.performance_cours && analyticsData.performance_cours.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Meilleur cours */}
+                  <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: COLORS.bgGreen, borderColor: COLORS.secondary }}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-3xl">🏆</span>
+                      <div>
+                        <h3 className="font-bold text-lg" style={{ color: COLORS.secondary }}>Meilleur cours</h3>
+                        <p className="text-xs" style={{ color: COLORS.gray600 }}>Meilleure moyenne obtenue</p>
+                      </div>
+                    </div>
+                    {(() => {
+                      const meilleur = [...analyticsData.performance_cours].sort((a, b) => parseFloat(b.moyenne) - parseFloat(a.moyenne))[0];
+                      return meilleur ? (
+                        <div>
+                          <p className="font-bold text-xl mb-1" style={{ color: COLORS.gray900 }}>{meilleur.titre}</p>
+                          <p className="text-sm mb-2" style={{ color: COLORS.gray600 }}>{meilleur.code}</p>
+                          <div className="flex items-center gap-4">
+                            <div>
+                              <p className="text-3xl font-bold" style={{ color: COLORS.secondary }}>{meilleur.moyenne}/20</p>
+                              <p className="text-xs" style={{ color: COLORS.gray600 }}>Moyenne</p>
+                            </div>
+                            <div>
+                              <p className="text-3xl font-bold" style={{ color: COLORS.secondary }}>{meilleur.taux_reussite}%</p>
+                              <p className="text-xs" style={{ color: COLORS.gray600 }}>Réussite</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+
+                  {/* Cours à améliorer */}
+                  <div className="p-6 rounded-2xl border-2" style={{ backgroundColor: COLORS.bgOrange, borderColor: COLORS.orange }}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-3xl">📈</span>
+                      <div>
+                        <h3 className="font-bold text-lg" style={{ color: COLORS.orange }}>Cours à renforcer</h3>
+                        <p className="text-xs" style={{ color: COLORS.gray600 }}>Cours avec plus faible moyenne</p>
+                      </div>
+                    </div>
+                    {(() => {
+                      const aAmeliorer = [...analyticsData.performance_cours].sort((a, b) => parseFloat(a.moyenne) - parseFloat(b.moyenne))[0];
+                      return aAmeliorer ? (
+                        <div>
+                          <p className="font-bold text-xl mb-1" style={{ color: COLORS.gray900 }}>{aAmeliorer.titre}</p>
+                          <p className="text-sm mb-2" style={{ color: COLORS.gray600 }}>{aAmeliorer.code}</p>
+                          <div className="flex items-center gap-4">
+                            <div>
+                              <p className="text-3xl font-bold" style={{ color: COLORS.orange }}>{aAmeliorer.moyenne}/20</p>
+                              <p className="text-xs" style={{ color: COLORS.gray600 }}>Moyenne</p>
+                            </div>
+                            <div>
+                              <p className="text-3xl font-bold" style={{ color: COLORS.orange }}>{aAmeliorer.taux_reussite}%</p>
+                              <p className="text-xs" style={{ color: COLORS.gray600 }}>Réussite</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* MESSAGE SI PAS DE DONNÉES ANALYTICS */}
+              {(!analyticsData.performance_cours || analyticsData.performance_cours.length === 0) &&
+               (!analyticsData.distribution_notes || analyticsData.distribution_notes.length === 0) && (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">📊</span>
+                  </div>
+                  <p className="text-lg font-semibold mb-2" style={{ color: COLORS.gray700 }}>
+                    Pas encore de statistiques
+                  </p>
+                  <p className="text-sm" style={{ color: COLORS.gray600 }}>
+                    Les statistiques apparaîtront dès que vous aurez attribué des notes à vos étudiants
+                  </p>
+                </div>
+              )}
+
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">📊</span>
+              </div>
+              <p className="text-lg font-semibold mb-2" style={{ color: COLORS.gray700 }}>
+                Statistiques non disponibles
+              </p>
+              <p className="text-sm" style={{ color: COLORS.gray600 }}>
+                Vérifiez votre connexion et rechargez la page
+              </p>
+            </div>
+          )}
+        </div>
+        {/* FIN SECTION ANALYTICS */}
+
       </div>
 
-      {/* 🆕 MODAL NOTES ATTRIBUÉES */}
+      {/* MODAL NOTES ATTRIBUÉES */}
       <Modal
         isOpen={showModalNotesAttribuees}
         onClose={() => setShowModalNotesAttribuees(false)}
@@ -614,7 +926,7 @@ export default function DashboardEnseignant() {
               <span className="text-3xl">📝</span>
             </div>
             <p className="text-lg font-semibold mb-2" style={{ color: COLORS.gray700 }}>Aucune note attribuée</p>
-            <p className="text-sm" style={{ color: COLORS.gray500 }}>Commencez à noter vos étudiants</p>
+            <p className="text-sm" style={{ color: COLORS.gray600 }}>Commencez à noter vos étudiants</p>
           </div>
         ) : (
           <div className="space-y-4 max-h-[70vh] overflow-y-auto">
@@ -703,7 +1015,7 @@ export default function DashboardEnseignant() {
                                             </div>
                                           </div>
                                           <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                                            note.valeur >= 10 ? 'bg-green-100 text-green-700' : 
+                                            note.valeur >= 10 ? 'bg-green-100 text-green-700' :
                                             note.est_rattrape ? 'bg-blue-100 text-blue-700' :
                                             'bg-orange-100 text-orange-700'
                                           }`}>
@@ -762,7 +1074,7 @@ export default function DashboardEnseignant() {
         )}
       </Modal>
 
-      {/* 🆕 MODAL MODIFIER NOTE */}
+      {/* MODAL MODIFIER NOTE */}
       <Modal
         isOpen={showModalModifierNote}
         onClose={() => !loadingNote && setShowModalModifierNote(false)}
@@ -770,8 +1082,8 @@ export default function DashboardEnseignant() {
       >
         {messageNote.text && (
           <div className={`mb-4 p-4 rounded-lg border-l-4 ${
-            messageNote.type === 'success' 
-              ? 'bg-green-100 border-green-500 text-green-700' 
+            messageNote.type === 'success'
+              ? 'bg-green-100 border-green-500 text-green-700'
               : 'bg-red-100 border-red-500 text-red-700'
           }`}>
             {messageNote.text}
@@ -907,8 +1219,8 @@ export default function DashboardEnseignant() {
       >
         {messageNote.text && (
           <div className={`mb-4 p-4 rounded-lg border-l-4 ${
-            messageNote.type === 'success' 
-              ? 'bg-green-100 border-green-500 text-green-700' 
+            messageNote.type === 'success'
+              ? 'bg-green-100 border-green-500 text-green-700'
               : 'bg-red-100 border-red-500 text-red-700'
           }`}>
             {messageNote.text}
@@ -921,8 +1233,8 @@ export default function DashboardEnseignant() {
             name="id_cours"
             value={formNote.id_cours}
             onChange={handleCoursChange}
-            options={cours.map(c => ({ 
-              value: c.id_cours, 
+            options={cours.map(c => ({
+              value: c.id_cours,
               label: `${c.code} - ${c.titre}${c.filiere && c.niveau ? ` (${c.filiere} ${c.niveau})` : ''}`
             }))}
             error={errorsNote.id_cours?.[0]}
@@ -958,8 +1270,8 @@ export default function DashboardEnseignant() {
                     name="id_etudiant"
                     value={formNote.id_etudiant}
                     onChange={handleChangeNote}
-                    options={etudiants.map(e => ({ 
-                      value: e.id_etudiant, 
+                    options={etudiants.map(e => ({
+                      value: e.id_etudiant,
                       label: `${e.prenom} ${e.nom} (${e.matricule})`
                     }))}
                     error={errorsNote.id_etudiant?.[0]}

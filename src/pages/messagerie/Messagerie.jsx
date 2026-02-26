@@ -23,11 +23,9 @@ export default function Messagerie() {
   
   // Modals
   const [showComposeModal, setShowComposeModal] = useState(false);
-  const [composeType, setComposeType] = useState('prive'); // prive, annonce, forum
+  const [composeType, setComposeType] = useState('prive');
   const [showConversationModal, setShowConversationModal] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
-
-  
 
   useEffect(() => {
     fetchData();
@@ -105,7 +103,6 @@ export default function Messagerie() {
   };
 
   const handleMessageRead = (messageId) => {
-    // ✅ ÉTAPE 1 : Mettre à jour localement (badge de l'onglet)
     setMessagesRecus(prev => 
       prev.map(m => 
         m.id_message === messageId 
@@ -113,8 +110,6 @@ export default function Messagerie() {
           : m
       )
     );
-
-    // ✅ ÉTAPE 2 : Notifier Navbar pour rafraîchir le badge rouge
     window.dispatchEvent(new Event('refreshMessageBadge'));
   };
 
@@ -131,11 +126,11 @@ export default function Messagerie() {
   const handleReplyToForum = (message) => {
     setComposeType('forum');
     setShowComposeModal(true);
-    
-    // ✅ Pré-remplir le sujet avec "Re: ..."
-    // Tu peux passer ces infos via un state si besoin
     console.log('Répondre à:', message.sujet);
   };
+
+  // Compteur messages non lus
+  const messagesNonLus = messagesRecus.filter(m => !m.est_lu).length;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F8FAFB' }}>
@@ -143,89 +138,139 @@ export default function Messagerie() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* En-tête */}
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold" style={{ color: '#0066CC' }}>
-              📧 Messagerie
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Messages privés, annonces et forum de discussion
-            </p>
-          </div>
+        {/* 🎨 EN-TÊTE AMÉLIORÉ */}
+        <div className="mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            {/* Titre */}
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div 
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)'
+                  }}
+                >
+                  <span className="text-3xl">📧</span>
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold" style={{ color: '#0066CC' }}>
+                    Messagerie
+                  </h1>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Messages privés, annonces et forum de discussion
+                  </p>
+                </div>
+              </div>
+            </div>
 
-          <div className="flex gap-3">
-            {/* Bouton Message Privé */}
-            <Button
-              variant="primary"
-              onClick={() => handleOpenCompose('prive')}
-              className="flex items-center"
-              style={{ backgroundColor: '#0066CC', borderColor: '#0066CC' }}
-            >
-              ✉️ Message privé
-            </Button>
-
-            {/* Bouton Annonce (Admin + Enseignant) */}
-            {(currentUser.role === 'admin' || currentUser.role === 'enseignant') && (
-              <Button
-                variant="primary"
-                onClick={() => handleOpenCompose('annonce')}
-                className="flex items-center"
-                style={{ backgroundColor: '#00A86B', borderColor: '#00A86B' }}
+            {/* 🎨 BOUTONS CTA MODERNES */}
+            <div className="flex flex-wrap gap-3">
+              {/* Message Privé */}
+              <button
+                onClick={() => handleOpenCompose('prive')}
+                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all"
+                style={{ 
+                  background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)'
+                }}
               >
-                📢 Annonce
-              </Button>
-            )}
+                <span className="text-lg">✉️</span>
+                <span>Message privé</span>
+              </button>
 
-            {/* Bouton Forum */}
-            <Button
-              variant="primary"
-              onClick={() => handleOpenCompose('forum')}
-              className="flex items-center"
-              style={{ backgroundColor: '#FF6B35', borderColor: '#FF6B35' }}
-            >
-              💬 Post forum
-            </Button>
+              {/* Annonce (Admin + Enseignant) */}
+              {(currentUser.role === 'admin' || currentUser.role === 'enseignant') && (
+                <button
+                  onClick={() => handleOpenCompose('annonce')}
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #00A86B 0%, #008755 100%)'
+                  }}
+                >
+                  <span className="text-lg">📢</span>
+                  <span>Annonce</span>
+                </button>
+              )}
+
+              {/* Forum */}
+              <button
+                onClick={() => handleOpenCompose('forum')}
+                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all"
+                style={{ 
+                  background: 'linear-gradient(135deg, #FF6B35 0%, #E55A2B 100%)'
+                }}
+              >
+                <span className="text-lg">💬</span>
+                <span>Post forum</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Onglets */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
-              {['recus', 'envoyes', 'annonces', 'forum'].map((tab) => (
+        {/* 🎨 ONGLETS MODERNES */}
+        <div className="bg-white rounded-2xl shadow-lg mb-6 overflow-hidden">
+          <div className="border-b-2 border-gray-100">
+            <nav className="flex -mb-0.5">
+              {[
+                { key: 'recus', icon: '📥', label: 'Messages reçus', count: messagesRecus.length, badge: messagesNonLus },
+                { key: 'envoyes', icon: '📤', label: 'Messages envoyés', count: messagesEnvoyes.length },
+                { key: 'annonces', icon: '📢', label: 'Annonces', count: annonces.length },
+                { key: 'forum', icon: '💬', label: 'Forum', count: forumMessages.length }
+              ].map((tab) => (
                 <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`py-4 px-6 text-sm font-medium transition-colors ${
-                    activeTab === tab
-                      ? 'border-b-2'
-                      : 'text-gray-500 hover:text-gray-700'
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex-1 py-4 px-4 text-sm font-bold transition-all relative ${
+                    activeTab === tab.key
+                      ? 'border-b-4'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                   style={
-                    activeTab === tab
-                      ? { borderBottomColor: '#0066CC', color: '#0066CC' }
+                    activeTab === tab.key
+                      ? { 
+                          borderBottomColor: '#0066CC', 
+                          color: '#0066CC',
+                          backgroundColor: '#F0F9FF'
+                        }
                       : {}
                   }
                 >
-                  {tab === 'recus' && `📥 Messages reçus (${messagesRecus.length})`}
-                  {tab === 'envoyes' && `📤 Messages envoyés (${messagesEnvoyes.length})`}
-                  {tab === 'annonces' && `📢 Annonces (${annonces.length})`}
-                  {tab === 'forum' && `💬 Forum (${forumMessages.length})`}
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-lg">{tab.icon}</span>
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.key === 'recus' ? 'Reçus' : tab.key === 'envoyes' ? 'Envoyés' : tab.label}</span>
+                    <span 
+                      className="px-2 py-0.5 rounded-full text-xs font-bold"
+                      style={{ 
+                        backgroundColor: activeTab === tab.key ? '#0066CC' : '#E5E7EB',
+                        color: activeTab === tab.key ? 'white' : '#6B7280'
+                      }}
+                    >
+                      {tab.count}
+                    </span>
+                    {/* Badge non lus */}
+                    {tab.badge > 0 && (
+                      <span 
+                        className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white animate-pulse"
+                        style={{ backgroundColor: '#DC143C' }}
+                      >
+                        {tab.badge}
+                      </span>
+                    )}
+                  </div>
                 </button>
               ))}
             </nav>
           </div>
         </div>
 
-        {/* Contenu */}
+        {/* CONTENU */}
         {loading ? (
-          <div className="text-center py-12">
+          <div className="text-center py-16">
             <div 
-              className="inline-block animate-spin rounded-full h-12 w-12 border-b-2"
+              className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 mb-4"
               style={{ borderColor: '#0066CC' }}
             ></div>
-            <p className="text-gray-600 mt-4">Chargement...</p>
+            <p className="text-lg font-semibold text-gray-700">Chargement de vos messages...</p>
           </div>
         ) : (
           <>
@@ -260,9 +305,12 @@ export default function Messagerie() {
               <div>
                 {annonces.length === 0 ? (
                   <Card>
-                    <div className="text-center py-12">
-                      <p className="text-3xl mb-4">📢</p>
-                      <p className="text-gray-500">Aucune annonce</p>
+                    <div className="text-center py-16">
+                      <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                        <span className="text-4xl">📢</span>
+                      </div>
+                      <p className="text-lg font-semibold text-gray-700 mb-2">Aucune annonce</p>
+                      <p className="text-sm text-gray-500">Les annonces apparaîtront ici</p>
                     </div>
                   </Card>
                 ) : (
@@ -285,9 +333,12 @@ export default function Messagerie() {
               <div>
                 {forumMessages.length === 0 ? (
                   <Card>
-                    <div className="text-center py-12">
-                      <p className="text-3xl mb-4">💬</p>
-                      <p className="text-gray-500">Aucun message dans le forum</p>
+                    <div className="text-center py-16">
+                      <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                        <span className="text-4xl">💬</span>
+                      </div>
+                      <p className="text-lg font-semibold text-gray-700 mb-2">Aucun message dans le forum</p>
+                      <p className="text-sm text-gray-500">Démarrez une discussion !</p>
                     </div>
                   </Card>
                 ) : (

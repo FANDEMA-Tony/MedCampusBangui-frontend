@@ -44,7 +44,7 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
       setLoadingUsers(true);
       let allUsers = [];
 
-      // Récupérer enseignants (TOUJOURS - tous peuvent envoyer aux enseignants)
+      // Récupérer enseignants
       try {
         const enseignantsResponse = await enseignantService.getAll();
         const enseignants = enseignantsResponse.data.data?.data || enseignantsResponse.data.data || [];
@@ -66,7 +66,7 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
         console.error('Erreur enseignants:', err);
       }
 
-      // 🆕 RÈGLE : Étudiants visibles UNIQUEMENT si l'utilisateur est Admin ou Enseignant
+      // Étudiants (admin/enseignant uniquement)
       if (currentUser.role === 'admin' || currentUser.role === 'enseignant') {
         try {
           const etudiantsResponse = await etudiantService.getAll();
@@ -197,35 +197,42 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={getModalTitle()}>
+      {/* 🎨 MESSAGE SUCCÈS/ERREUR MODERNE */}
       {message.text && (
         <div 
-          className={`mb-4 p-4 rounded-lg border-l-4`}
+          className={`mb-6 p-4 rounded-xl border-l-4 shadow-sm animate-fade-in`}
           style={{
             backgroundColor: message.type === 'success' ? '#E6F7F0' : '#FFE6EC',
             borderLeftColor: message.type === 'success' ? '#00A86B' : '#DC143C',
-            color: message.type === 'success' ? '#00A86B' : '#DC143C'
           }}
         >
-          {message.text}
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">
+              {message.type === 'success' ? '✅' : '❌'}
+            </span>
+            <p className="font-semibold" style={{ color: message.type === 'success' ? '#00A86B' : '#DC143C' }}>
+              {message.text}
+            </p>
+          </div>
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
         
-        {/* DESTINATAIRE (Messages privés uniquement) */}
+        {/* 🎨 DESTINATAIRE (Messages privés) */}
         {type === 'prive' && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="mb-5">
+            <label className="block text-sm font-bold text-gray-700 mb-2">
               Destinataire <span style={{ color: '#DC143C' }}>*</span>
             </label>
             
             {loadingUsers ? (
-              <div className="text-center py-4">
+              <div className="text-center py-6 bg-gray-50 rounded-xl">
                 <div 
-                  className="inline-block animate-spin rounded-full h-6 w-6 border-b-2"
+                  className="inline-block animate-spin rounded-full h-8 w-8 border-b-2"
                   style={{ borderColor: '#0066CC' }}
                 ></div>
-                <p className="text-sm text-gray-500 mt-2">Chargement...</p>
+                <p className="text-sm text-gray-500 mt-3">Chargement des contacts...</p>
               </div>
             ) : (
               <>
@@ -234,10 +241,8 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
                   value={formData.destinataire_id}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   style={{ outline: 'none' }}
-                  onFocus={(e) => e.target.style.borderColor = '#0066CC'}
-                  onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
                 >
                   <option value="">-- Sélectionner un destinataire --</option>
                   
@@ -268,32 +273,38 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
                   )}
                 </select>
 
-                {/* 🆕 MESSAGE INFO POUR ÉTUDIANTS */}
+                {/* Note pour étudiants */}
                 {currentUser.role === 'etudiant' && (
                   <div 
-                    className="mt-2 p-3 rounded-lg text-sm"
-                    style={{ backgroundColor: '#E6F2FF', color: '#0066CC' }}
+                    className="mt-3 p-4 rounded-xl text-sm border-l-4"
+                    style={{ backgroundColor: '#E6F2FF', borderLeftColor: '#0066CC' }}
                   >
-                    ℹ️ <strong>Note :</strong> Vous pouvez envoyer des messages aux enseignants uniquement. 
-                    Pour échanger avec d'autres étudiants, utilisez le <strong>Forum</strong>.
+                    <p className="flex items-start gap-2">
+                      <span className="text-lg flex-shrink-0">ℹ️</span>
+                      <span>
+                        <strong>Note :</strong> Vous pouvez envoyer des messages aux enseignants uniquement. 
+                        Pour échanger avec d'autres étudiants, utilisez le <strong>Forum</strong>.
+                      </span>
+                    </p>
                   </div>
                 )}
               </>
             )}
             
             {errors.destinataire_id && (
-              <p className="text-sm mt-1" style={{ color: '#DC143C' }}>
+              <p className="text-sm mt-2 flex items-center gap-2" style={{ color: '#DC143C' }}>
+                <span>⚠️</span>
                 {errors.destinataire_id[0]}
               </p>
             )}
           </div>
         )}
 
-        {/* VISIBILITÉ (Annonces uniquement) */}
+        {/* 🎨 VISIBILITÉ (Annonces) */}
         {type === 'annonce' && (
           <>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="mb-5">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
                 Visibilité <span style={{ color: '#DC143C' }}>*</span>
               </label>
               <select
@@ -301,10 +312,8 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
                 value={formData.visibilite}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                 style={{ outline: 'none' }}
-                onFocus={(e) => e.target.style.borderColor = '#0066CC'}
-                onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
               >
                 <option value="tous">🌍 Tous les utilisateurs</option>
                 <option value="enseignants">👨‍🏫 Enseignants uniquement</option>
@@ -312,7 +321,8 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
                 <option value="cours">📚 Cours spécifique</option>
               </select>
               {errors.visibilite && (
-                <p className="text-sm mt-1" style={{ color: '#DC143C' }}>
+                <p className="text-sm mt-2 flex items-center gap-2" style={{ color: '#DC143C' }}>
+                  <span>⚠️</span>
                   {errors.visibilite[0]}
                 </p>
               )}
@@ -320,16 +330,16 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
 
             {/* COURS (si visibilité = cours) */}
             {formData.visibilite === 'cours' && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="mb-5">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
                   Cours concerné <span style={{ color: '#DC143C' }}>*</span>
                 </label>
                 
                 {loadingCours ? (
-                  <div className="text-center py-2">
+                  <div className="text-center py-4 bg-gray-50 rounded-xl">
                     <div 
-                      className="inline-block animate-spin rounded-full h-5 w-5 border-b-2"
-                      style={{ borderColor: '#0066CC' }}
+                      className="inline-block animate-spin rounded-full h-6 w-6 border-b-2"
+                      style={{ borderColor: '#00A86B' }}
                     ></div>
                   </div>
                 ) : (
@@ -338,10 +348,8 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
                     value={formData.id_cours}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                     style={{ outline: 'none' }}
-                    onFocus={(e) => e.target.style.borderColor = '#0066CC'}
-                    onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
                   >
                     <option value="">-- Sélectionner un cours --</option>
                     {coursList.map(cours => (
@@ -353,7 +361,8 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
                 )}
                 
                 {errors.id_cours && (
-                  <p className="text-sm mt-1" style={{ color: '#DC143C' }}>
+                  <p className="text-sm mt-2 flex items-center gap-2" style={{ color: '#DC143C' }}>
+                    <span>⚠️</span>
                     {errors.id_cours[0]}
                   </p>
                 )}
@@ -362,21 +371,32 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
           </>
         )}
 
-        {/* SUJET */}
-        <Input
-          label="Sujet"
-          type="text"
-          name="sujet"
-          value={formData.sujet}
-          onChange={handleChange}
-          error={errors.sujet?.[0]}
-          placeholder={type === 'forum' ? 'Titre de votre discussion' : 'Objet du message'}
-          required={type === 'annonce' || type === 'forum'}
-        />
+        {/* 🎨 SUJET */}
+        <div className="mb-5">
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            Sujet {(type === 'annonce' || type === 'forum') && <span style={{ color: '#DC143C' }}>*</span>}
+          </label>
+          <input
+            type="text"
+            name="sujet"
+            value={formData.sujet}
+            onChange={handleChange}
+            required={type === 'annonce' || type === 'forum'}
+            placeholder={type === 'forum' ? 'Titre de votre discussion' : 'Objet du message'}
+            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            style={{ outline: 'none' }}
+          />
+          {errors.sujet && (
+            <p className="text-sm mt-2 flex items-center gap-2" style={{ color: '#DC143C' }}>
+              <span>⚠️</span>
+              {errors.sujet[0]}
+            </p>
+          )}
+        </div>
 
-        {/* CONTENU */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        {/* 🎨 CONTENU */}
+        <div className="mb-6">
+          <label className="block text-sm font-bold text-gray-700 mb-2">
             Message <span style={{ color: '#DC143C' }}>*</span>
           </label>
           <textarea
@@ -385,45 +405,52 @@ export default function ComposeModal({ isOpen, onClose, onMessageSent, type = 'p
             onChange={handleChange}
             required
             rows={type === 'forum' ? '8' : '6'}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
-            style={{ outline: 'none' }}
+            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            style={{ outline: 'none', resize: 'vertical' }}
             placeholder={
               type === 'prive' ? 'Écrivez votre message...' :
               type === 'annonce' ? 'Rédigez votre annonce...' :
               'Partagez votre question ou réflexion...'
             }
-            onFocus={(e) => e.target.style.borderColor = '#0066CC'}
-            onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
           />
           {errors.contenu && (
-            <p className="text-sm mt-1" style={{ color: '#DC143C' }}>
+            <p className="text-sm mt-2 flex items-center gap-2" style={{ color: '#DC143C' }}>
+              <span>⚠️</span>
               {errors.contenu[0]}
             </p>
           )}
         </div>
 
-        {/* BOUTONS */}
-        <div className="flex gap-4 mt-6">
+        {/* 🎨 BOUTONS CTA DIFFÉRENCIÉS */}
+        <div className="flex gap-3">
           <Button
             type="submit"
             variant="primary"
-            className="flex-1"
+            className="flex-1 py-3 font-bold text-base shadow-lg hover:shadow-xl transition-all"
             disabled={loading || loadingUsers || loadingCours}
             style={{
               backgroundColor: type === 'prive' ? '#0066CC' : type === 'annonce' ? '#00A86B' : '#FF6B35',
               borderColor: type === 'prive' ? '#0066CC' : type === 'annonce' ? '#00A86B' : '#FF6B35'
             }}
           >
-            {loading ? 'Envoi...' : 
-             type === 'prive' ? '📤 Envoyer' : 
-             type === 'annonce' ? '📢 Publier' : 
-             '💬 Poster'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="animate-spin">⏳</span>
+                Envoi en cours...
+              </span>
+            ) : (
+              <>
+                {type === 'prive' ? '📤 Envoyer' : 
+                 type === 'annonce' ? '📢 Publier l\'annonce' : 
+                 '💬 Poster sur le forum'}
+              </>
+            )}
           </Button>
           <Button
             type="button"
             variant="secondary"
             onClick={handleClose}
-            className="flex-1"
+            className="flex-1 py-3 font-semibold text-base"
             disabled={loading}
           >
             Annuler
