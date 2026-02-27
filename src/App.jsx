@@ -14,6 +14,10 @@ import SearchResults from './components/search/SearchResults';
 import FicheEtudiant from './pages/admin/FicheEtudiant';
 import FicheEnseignant from './pages/admin/FicheEnseignant';
 import FicheCours from './pages/admin/FicheCours';
+import Quiz from './pages/Quiz';
+import Certificats from './pages/Certificats';
+import VerifierCertificat from './pages/VerifierCertificat';
+import Annonces from './pages/Annonces';
 
 function App() {
   return (
@@ -77,7 +81,27 @@ function App() {
           isAuthenticated() && getUser()?.role !== 'etudiant'
             ? <FicheCours />
             : <Navigate to="/dashboard" />
-        } />F
+        } />
+
+        {/* 📝 QUIZ — Sprint 5 */}
+        <Route path="/quiz" element={
+          isAuthenticated() ? <Quiz /> : <Navigate to="/login" />
+        } />
+
+        {/* 🎓 CERTIFICATS — Sprint 6 */}
+        <Route path="/certificats" element={
+          isAuthenticated() ? <Certificats /> : <Navigate to="/login" />
+        } />
+
+        {/* ✅ VÉRIFICATION PUBLIQUE — sans auth */}
+        <Route path="/verifier/:code" element={<VerifierCertificat />} />
+
+        {/* 📢 ANNONCES — Sprint 7 — Admin seulement */}
+        <Route path="/annonces" element={
+          isAuthenticated() && getUser()?.role === 'admin'
+            ? <Annonces />
+            : <Navigate to="/dashboard" />
+        } />
       </Routes>
     </BrowserRouter>
   );

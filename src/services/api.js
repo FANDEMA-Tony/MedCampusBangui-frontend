@@ -226,4 +226,28 @@ export const quizService = {
   stats: (id) => api.get(`/quiz/${id}/stats`),
   togglePublie: (id) => api.post(`/quiz/${id}/toggle-publie`),
 };
+
+// ✅ CERTIFICATS — Sprint 6
+export const certificatService = {
+  // Vérifier éligibilité de l'étudiant
+  eligibilite: () => api.get('/certificats/eligibilite'),
+
+  // Générer un certificat
+  generer: (data) => api.post('/certificats/generer', data),
+
+  // Mes certificats (étudiant)
+  mesCertificats: () => api.get('/certificats'),
+
+  // Tous les certificats (admin)
+  tous: () => api.get('/certificats/tous'),
+
+  // Signer un certificat (admin)
+  signer: (id, data) => api.post(`/certificats/${id}/signer`, data),
+
+  // Données pour téléchargement PDF
+  telecharger: (id) => api.get(`/certificats/${id}/telecharger`),
+
+  // Vérification publique (sans auth)
+  verifier: (code) => axios.get(`${import.meta.env.VITE_API_URL}/certificats/verifier/${code}`),
+};
 export default api;

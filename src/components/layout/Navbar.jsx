@@ -13,10 +13,10 @@ export default function Navbar() {
 
   useEffect(() => {
     fetchNonLus();
-    
+
     // Rafraîchir toutes les 30 secondes
     const interval = setInterval(fetchNonLus, 30000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -34,7 +34,7 @@ export default function Navbar() {
     };
 
     window.addEventListener('refreshMessageBadge', handleRefreshBadge);
-    
+
     return () => {
       window.removeEventListener('refreshMessageBadge', handleRefreshBadge);
     };
@@ -68,9 +68,9 @@ export default function Navbar() {
                 MedCampus Bangui
               </h1>
               <p className="text-xs" style={{ color: '#6B7280' }}>
-                {user?.role === 'admin'      && 'Administration'}
+                {user?.role === 'admin' && 'Administration'}
                 {user?.role === 'enseignant' && 'Espace Enseignant'}
-                {user?.role === 'etudiant'   && 'Espace Étudiant'}
+                {user?.role === 'etudiant' && 'Espace Étudiant'}
               </p>
             </div>
           </div>
@@ -135,6 +135,59 @@ export default function Navbar() {
                 />
               )}
             </button>
+
+            {/* Quiz */}
+            <button
+              onClick={() => navigate('/quiz')}
+              className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              title="Quiz"
+              style={{
+                backgroundColor: location.pathname === '/quiz' ? '#F5F3FF' : 'transparent',
+              }}
+            >
+              <span className="text-2xl">📝</span>
+              {location.pathname === '/quiz' && (
+                <span
+                  className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: '#8B5CF6' }}
+                />
+              )}
+            </button>
+
+            {/* Certificats */}
+            <button
+              onClick={() => navigate('/certificats')}
+              className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              title="Certificats"
+              style={{
+                backgroundColor: location.pathname === '/certificats' ? '#FFFBEB' : 'transparent',
+              }}
+            >
+              <span className="text-2xl">🎓</span>
+              {location.pathname === '/certificats' && (
+                <span
+                  className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: '#B8860B' }}
+                />
+              )}
+            </button>
+
+            {/* Annonces — admin seulement */}
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => navigate('/annonces')}
+                className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Annonces"
+                style={{
+                  backgroundColor: location.pathname === '/annonces' ? '#FEF3C7' : 'transparent',
+                }}>
+                <span className="text-2xl">📢</span>
+                {location.pathname === '/annonces' && (
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: '#D97706' }} />
+                )}
+              </button>
+            )}
 
             {/* User Info */}
             <div className="text-right">

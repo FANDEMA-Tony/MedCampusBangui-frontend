@@ -11,6 +11,8 @@ import BarChart from '../../components/charts/BarChart';
 // ✅ IMPORTS EXPORT PDF
 import ExportButton from '../../components/export/ExportButton';
 import { generateBulletinPDF, generateCertificatPDF } from '../../utils/pdfGenerator';
+// 🆕 IMPORT API pour charger les infos étudiant
+import axios from 'axios';
 
 // 🎨 PALETTE COULEURS
 const COLORS = {
@@ -94,6 +96,9 @@ export default function DashboardEtudiant() {
   const [cours, setCours] = useState([]);
   const [etudiantInfo, setEtudiantInfo] = useState(null);
 
+  // 🆕 AMÉLIORATION — Données complètes de l'étudiant connecté (matricule, filiere, niveau)
+  const [etudiantComplet, setEtudiantComplet] = useState(null);
+
   const [stats, setStats] = useState({
     totalNotes: 0,
     moyenne: 0,
@@ -127,7 +132,33 @@ export default function DashboardEtudiant() {
 
   useEffect(() => {
     fetchData();
+    fetchEtudiantComplet(); // 🆕 AMÉLIORATION — charger les données étudiant au démarrage
   }, []);
+
+  // ─────────────────────────────────────────────
+  // 🆕 AMÉLIORATION — FETCH DONNÉES COMPLÈTES ÉTUDIANT
+  // Récupère matricule, filiere, niveau depuis la BDD
+  // ─────────────────────────────────────────────
+  const fetchEtudiantComplet = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/api/mes-informations`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (response.data.success) {
+        setEtudiantComplet(response.data.data);
+        console.log('✅ Étudiant complet chargé:', response.data.data);
+      }
+    } catch (error) {
+      console.warn('⚠️ Impossible de charger les infos étudiant complètes:', error);
+      // Pas bloquant — le certificat utilisera les données de user en fallback
+    }
+  };
 
   // ─────────────────────────────────────────────
   // FETCH NOTES
@@ -311,15 +342,17 @@ export default function DashboardEtudiant() {
     await generateBulletinPDF(etudiantData, notes, statsData);
   };
 
+  // ✅ AMÉLIORATION — handleExportCertificat utilise etudiantComplet (données BDD)
+  // au lieu de user (données JWT qui ne contient pas matricule/filiere/niveau)
   const handleExportCertificat = async () => {
     const etudiantData = {
-      prenom:         user?.prenom         || '',
-      nom:            user?.nom            || '',
-      matricule:      user?.matricule      || '',
-      email:          user?.email          || '',
-      filiere:        etudiantInfo?.filiere || user?.filiere || '',
-      niveau:         etudiantInfo?.niveau  || user?.niveau  || '',
-      date_naissance: user?.date_naissance  || '',
+      prenom:         etudiantComplet?.prenom         || user?.prenom         || '',
+      nom:            etudiantComplet?.nom             || user?.nom            || '',
+      matricule:      etudiantComplet?.matricule       || user?.matricule      || 'N/A',
+      email:          etudiantComplet?.email           || user?.email          || '',
+      filiere:        etudiantComplet?.filiere         || etudiantInfo?.filiere || user?.filiere || 'N/A',
+      niveau:         etudiantComplet?.niveau          || etudiantInfo?.niveau  || user?.niveau  || 'N/A',
+      date_naissance: etudiantComplet?.date_naissance  || user?.date_naissance  || '',
     };
     await generateCertificatPDF(etudiantData);
   };
