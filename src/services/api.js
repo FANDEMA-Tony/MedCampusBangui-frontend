@@ -88,21 +88,21 @@ export const coursService = {
 export const noteService = {
   getAll: () => api.get('/notes'),
   getGrouped: () => api.get('/notes-grouped'), // 🆕 NOUVELLE MÉTHODE
-  
+
   getMesNotes: () => {
     const user = JSON.parse(localStorage.getItem('user'));
-    
+
     if (user?.role === 'etudiant') {
       return api.get('/mes-notes-etudiant');
     }
-    
+
     if (user?.role === 'enseignant') {
       return api.get('/mes-notes');
     }
-    
+
     return api.get('/notes');
   },
-  
+
   getOne: (id) => api.get(`/notes/${id}`),
   create: (data) => api.post('/notes', data),
   update: (id, data) => api.put(`/notes/${id}`, data),
@@ -116,18 +116,18 @@ export const messageService = {
   getBoiteEnvoi: () => api.get('/messages/boite-envoi'),
   getConversation: (userId) => api.get(`/messages/conversation/${userId}`),
   getNonLus: () => api.get('/messages/non-lus'),
-  
+
   // Annonces
   getAnnonces: () => api.get('/messages/annonces'),
-  
+
   // Forum
   getForum: (page = 1) => api.get('/messages/forum', { params: { page } }),
-  
+
   // CRUD
   getOne: (id) => api.get(`/messages/${id}`),
   send: (data) => api.post('/messages', data),
   delete: (id) => api.delete(`/messages/${id}`),
-  
+
   // Épingler
   toggleEpingle: (id) => api.post(`/messages/${id}/toggle-epingle`),
 
@@ -177,4 +177,53 @@ export const analyticsService = {
   getStatsEnseignant: () => api.get('/analytics/enseignant'),
 };
 
+export const calendrierService = {
+  getDonneesMois: (annee, mois, filiere, niveau) => api.get('/calendrier/mois', { params: { annee, mois, filiere, niveau } }),
+  getAllEvenements: (params = {}) => api.get('/calendrier/evenements', { params }),
+  getEvenementsEtudiant: (params = {}) => api.get('/calendrier/evenements/etudiant', { params }),
+  createEvenement: (data) => api.post('/calendrier/evenements', data),
+  updateEvenement: (id, data) => api.put(`/calendrier/evenements/${id}`, data),
+  deleteEvenement: (id) => api.delete(`/calendrier/evenements/${id}`),
+  getEmploiDuTemps: (filiere, niveau, semestre) => api.get('/calendrier/emploi-du-temps', { params: { filiere, niveau, semestre } }),
+  createEmploi: (data) => api.post('/calendrier/emploi-du-temps', data),
+  updateEmploi: (id, data) => api.put(`/calendrier/emploi-du-temps/${id}`, data),
+  deleteEmploi: (id) => api.delete(`/calendrier/emploi-du-temps/${id}`),
+  getExamens: (params = {}) => api.get('/calendrier/examens', { params }),
+  createExamen: (data) => api.post('/calendrier/examens', data),
+  updateExamen: (id, data) => api.put(`/calendrier/examens/${id}`, data),
+  deleteExamen: (id) => api.delete(`/calendrier/examens/${id}`),
+};
+
+// ✅ RECHERCHE GLOBALE
+export const searchService = {
+  search: (query, type = 'tous') =>
+    api.get('/search', { params: { q: query, type } }),
+};
+
+// ✅ QUIZ — Sprint 5
+export const quizService = {
+  // Liste
+  getAll: (params = {}) => api.get('/quiz', { params }),
+
+  // Détail
+  getOne: (id) => api.get(`/quiz/${id}`),
+
+  // CRUD
+  create: (data) => api.post('/quiz', data),
+  update: (id, data) => api.put(`/quiz/${id}`, data),
+  delete: (id) => api.delete(`/quiz/${id}`),
+
+  // Questions
+  addQuestion: (idQuiz, data) => api.post(`/quiz/${idQuiz}/questions`, data),
+  updateQuestion: (idQuestion, data) => api.put(`/quiz/questions/${idQuestion}`, data),
+  deleteQuestion: (idQuestion) => api.delete(`/quiz/questions/${idQuestion}`),
+
+  // Étudiant
+  soumettre: (id, data) => api.post(`/quiz/${id}/soumettre`, data),
+  mesTentatives: (id) => api.get(`/quiz/${id}/mes-tentatives`),
+
+  // Admin/Enseignant
+  stats: (id) => api.get(`/quiz/${id}/stats`),
+  togglePublie: (id) => api.post(`/quiz/${id}/toggle-publie`),
+};
 export default api;
